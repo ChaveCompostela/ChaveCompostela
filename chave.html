@@ -771,8 +771,10 @@ async function guardarEvento(e) {
     : await supabaseClient.from('eventos').insert([payload]);
 
   if (error) {
-    alert('Error ao gardar evento: ' + error.message);
+    console.error('Detalles del error Supabase:', error);
+    alert(`Error ao gardar evento (Código ${error.code}):\n${error.message}\n${error.details || ''}`);
   } else {
+    alert('✅ Evento gardado correctamente');
     resetForm('eve');
     cargarEventos();
   }
