@@ -2,9 +2,12 @@
 <html lang="gl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Chave Compostela</title>
 
+
+    
+    
     <!-- Habilita el modo App a pantalla completa en iOS (sin barra de direcciones de Safari) -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 
@@ -28,16 +31,26 @@
             --color-dark: #1E293B;
             --color-light: #F8FAFC;
         }
-        body {
-            background-color: #E2E8F0;
-            font-family: system-ui, -apple-system, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .app-container {
+        /* Restablece márgenes y desactiva el rebote de la pantalla */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100dvh; /* dvh calcula la altura real descontando la barra de Chrome */
+  overflow-x: hidden; /* Elimina scroll horizontal accidental */
+  overscroll-behavior: none; /* Desactiva el efecto rebote/elástico en iOS */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Si tu interfaz debe caber completa en una sola pantalla sin scroll vertical: */
+body {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+          .app-container {
             width: 100%;
             max-width: 390px;
             height: 100%;
