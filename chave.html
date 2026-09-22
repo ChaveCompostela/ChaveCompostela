@@ -291,10 +291,13 @@
       <input type="datetime-local" id="eve-fecha" required>
     </div>
     
-    <div class="form-group">
-      <label for="eve-lugar">Lugar / Ubicación</label>
-      <input type="text" id="eve-lugar" placeholder="Ex: Campo de San Lázaro">
-    </div>
+   <div class="form-group">
+  <label for="eve-lugar">Lugar / Ubicación</label>
+  <div style="display: flex; gap: 8px;">
+    <input type="text" id="eve-lugar" placeholder="Ex: Campo de San Lázaro ou enlace de Maps">
+    <button type="button" class="btn-secondary" onclick="abrirGoogleMaps()">🗺️ Maps</button>
+  </div>
+</div>
 
     <div class="form-group" style="grid-column: 1 / -1;">
       <label for="eve-comentarios">Comentarios / Observacións</label>
@@ -703,15 +706,31 @@ async function guardarPartido(e) {
 // 1. Cargar eventos ordenando por 'fecha_hora'
 
 // Función auxiliar para renderizar el lugar
+// Función para dar formato al campo lugar en la tabla
 function formatearLugar(lugar) {
   if (!lugar) return '-';
-  // Si el valor guardado es una URL de Maps
   if (lugar.startsWith('http://') || lugar.startsWith('https://')) {
-    return `<a href="${lugar}" target="_blank" rel="noopener" style="color: #0066cc; text-decoration: underline;">📍 Ver no mapa</a>`;
+    return `<a href="${lugar}" target="_blank" rel="noopener" style="color: #0066cc; font-weight: bold; text-decoration: underline;">📍 Ver no mapa</a>`;
   }
   return lugar;
 }
-    
+
+// Función para abrir Google Maps desde el formulario
+function abrirGoogleMaps() {
+  const lugarInput = document.getElementById('eve-lugar')?.value.trim();
+  if (lugarInput) {
+    if (lugarInput.startsWith('http://') || lugarInput.startsWith('https://')) {
+      window.open(lugarInput, '_blank');
+    } else {
+      const query = encodeURIComponent(lugarInput);
+      window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
+    }
+  } else {
+    window.open('https://www.google.com/maps', '_blank');
+  }
+}
+
+// 1. Cargar la tabla de Eventos
 async function cargarEventos() {
   const { data, error } = await supabaseClient
     .from('eventos')
@@ -722,10 +741,6 @@ async function cargarEventos() {
     console.error('Error cargando eventos:', error.message);
     return;
   }
-
-
-
- <td>${formatearLugar(ev.lugar)}</td>
 
   const tbody = document.querySelector('#tabla-eventos tbody');
   if (tbody) {
@@ -739,7 +754,7 @@ async function cargarEventos() {
         <tr>
           <td>${fechaVal ? new Date(fechaVal).toLocaleString('gl-ES', { dateStyle: 'short', timeStyle: 'short' }) : '-'}</td>
           <td><b>${ev.titulo}</b></td>
-          <td>${ev.lugar || '-'}</td>
+          <td>${formatearLugar(ev.lugar)}</td>
           <td>${ev.comentarios || '-'}</td>
           <td class="action-btns">
             <button onclick="editarEvento(${ev.id}, '${tituloEsc}', '${fechaVal}', '${lugarEsc}', '${comentariosEsc}')">Editar</button>
@@ -751,7 +766,7 @@ async function cargarEventos() {
   }
 }
 
-// 2. Cargar datos en el formulario para editar
+// 2. Cargar evento en el formulario para editar
 function editarEvento(id, titulo, fechaHora, lugar, comentarios) {
   const elId = document.getElementById('eve-id');
   const elTitulo = document.getElementById('eve-titulo');
@@ -766,7 +781,7 @@ function editarEvento(id, titulo, fechaHora, lugar, comentarios) {
   if (elComentarios) elComentarios.value = comentarios || '';
 }
 
-// 3. Guardar evento enviando 'fecha_hora'
+// 3. Guardar evento
 async function guardarEvento(e) {
   e.preventDefault();
 
@@ -781,12 +796,11 @@ async function guardarEvento(e) {
     return;
   }
 
-  // Convertir fecha a formato ISO completo para PostgreSQL timestamptz
   const fechaISO = new Date(fechaInput).toISOString();
 
   const payload = {
     titulo,
-    fecha_hora: fechaISO, // Nombre exacto de la columna en Supabase
+    fecha_hora: fechaISO,
     lugar,
     comentarios
   };
