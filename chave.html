@@ -592,45 +592,46 @@ async function cargarEquipos() {
 
 async function guardarPartido(e) {
   e.preventDefault();
-  
-  const id = document.getElementById('part-id').value;
-  const jornada = parseInt(document.getElementById('part-jornada').value);
-  
-  // Obtenemos los valores directos del select
-  const valLocal = document.getElementById('part-local').value;
-  const valVisitante = document.getElementById('part-visitante').value;
 
-  // 1. VALIDACIÓN: Comprobar que se ha seleccionado algún equipo
+  const id = document.getElementById('part-id')?.value;
+  const jornada = parseInt(document.getElementById('part-jornada')?.value);
+  
+  const valLocal = document.getElementById('part-local')?.value;
+  const valVisitante = document.getElementById('part-visitante')?.value;
+
+  console.log("Valores leídos del desplegable -> Local:", valLocal, "Visitante:", valVisitante);
+
+  // 1. Validar selección vacía
   if (!valLocal || !valVisitante) {
-    alert('⚠️ Por favor, selecciona un equipo local e un visitante.');
+    alert("⚠️ Debes seleccionar un equipo local y un visitante.");
     return;
   }
 
-  // Si tus IDs en la base de datos son enteros (int8/serial), los convertimos:
   const equipo_local_id = parseInt(valLocal);
   const equipo_visitante_id = parseInt(valVisitante);
 
-  // Si tus IDs son UUID, quita el parseInt y usa directamente valLocal y valVisitante.
-  if (isNaN(equipo_local_id) || isNaN(equipo_visitante_id)) {
-    alert('⚠️ O ID do equipo seleccionado no es válido (NaN). Comproba que os equipos están cargados correctamente.');
+  // 2. DIAGNÓSTICO: Comprobar si el equipo local realmente existe en Supabase
+  const { data: equipoLocalExiste, error: errLocal } = await supabaseClient
+    .from('equipos')
+    .select('id, nombre')
+    .eq('id', equipo_local_id)
+    .maybeSingle();
+
+  if (!equipoLocalExiste) {
+    alert(`❌ ATENCIÓN:\nIntentas guardar el equipo local con ID = ${equipo_local_id}.\n\nEste ID NO EXISTE actualmente en tu tabla "equipos" de Supabase.`);
+    console.error("ID local no encontrado en la tabla equipos:", equipo_local_id);
     return;
   }
 
-  const puntos_local = parseInt(document.getElementById('part-pts-loc').value) || 0;
-  const puntos_visitante = parseInt(document.getElementById('part-pts-vis').value) || 0;
-  const chaves_local = parseInt(document.getElementById('part-chv-loc').value) || 0;
-  const chaves_visitante = parseInt(document.getElementById('part-chv-vis').value) || 0;
-  const estado = document.getElementById('part-estado').value;
+  // 3. DIAGNÓSTICO: Comprobar equipo visitante
+  const { data: equipoVisExiste } = await supabaseClient
+    .from('equipos')
+    .select('id, nombre')
+    .eq('id', equipo_visitante_id)
+    .maybeSingle();
 
-  // 2. VALIDACIÓN: No enfrentar al mismo equipo
-  if (equipo_local_id === equipo_visitante_id) {
-    alert('⚠️ Erro: O equipo local e o visitante non poden ser o mesmo.');
-    return;
-  }
-
-  // 3. VALIDACIÓN: No empates en estado finalizado
-  if (estado === 'finalizado' && puntos_local === puntos_visitante) {
-    alert('⚠️ Erro: Na Chave non se admiten empates ao finalizar un partido.');
+  if (!equipoVisExiste) {
+    alert(`❌ ATENCIÓN:\nIntentas guardar el equipo visitante con ID = ${equipo_visitante_id}.\n\nEste ID NO EXISTE en tu tabla "equipos" de Supabase.`);
     return;
   }
 
@@ -638,27 +639,28 @@ async function guardarPartido(e) {
     jornada,
     equipo_local_id,
     equipo_visitante_id,
-    puntos_local,
-    puntos_visitante,
-    chaves_local,
-    chaves_visitante,
-    estado
+    puntos_local: parseInt(document.getElementById('part-pts-loc')?.value) || 0,
+    puntos_visitante: parseInt(document.getElementById('part-pts-vis')?.value) || 0,
+    chaves_local: parseInt(document.getElementById('part-chv-loc')?.value) || 0,
+    chaves_visitante: parseInt(document.getElementById('part-chv-vis')?.value) || 0,
+    estado: document.getElementById('part-estado')?.value
   };
 
-  console.log('Enviando partido:', payload); // Para revisar en la consola de F12 si hiciera falta
+  console.log("Payload que se enviará a Supabase:", payload);
 
   const { error } = id 
     ? await supabaseClient.from('partidos').update(payload).eq('id', id)
     : await supabaseClient.from('partidos').insert([payload]);
 
   if (error) {
+    console.error("Error Supabase:", error);
     alert('Error al guardar partido: ' + error.message);
   } else {
+    alert('✅ Partido guardado correctamente');
     resetForm('part');
     cargarPartidos();
   }
 }
-
     // 5. EVENTOS CRUD
     async function cargarEventos() {
       const { data, error } = await supabaseClient.from('eventos').select('*').order('fecha_hora', { ascending: true });
