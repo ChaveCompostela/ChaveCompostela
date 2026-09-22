@@ -709,17 +709,24 @@ async function guardarPartido(e) {
     }
 
     // ELIMINACIÓN GENÉRICA
-    async function eliminar(tabla, id, callback) {
-      if (!id) return;
-      if (confirm(`¿Seguro que desexas eliminar este rexistro de ${tabla}?`)) {
-        const { error } = await supabaseClient.from(tabla).delete().eq('id', id);
-        if (error) {
-          alert('Error al eliminar: ' + error.message);
-        } else {
-          callback();
-        }
+async function eliminar(tabla, id, callback) {
+  if (!id) return;
+  
+  if (confirm(`¿Seguro que desexas eliminar este rexistro de ${tabla}?`)) {
+    const { error } = await supabaseClient.from(tabla).delete().eq('id', id);
+    
+    if (error) {
+      // Si el error es de clave foránea al borrar (código PostgreSQL 23503)
+      if (error.code === '23503') {
+        alert('⚠️ Non se pode eliminar este rexistro porque ten datos vinculados noutras táboas (por exemplo, partidos ou xogadores asociados).');
+      } else {
+        alert('Error al eliminar: ' + error.message);
       }
+    } else {
+      callback();
     }
+  }
+}
 
     // INICIALIZAR
     window.addEventListener('DOMContentLoaded', checkAuth);
