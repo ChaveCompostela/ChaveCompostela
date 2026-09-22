@@ -729,7 +729,42 @@ async function eliminar(tabla, id, callback) {
     }
   }
 }
+async function guardarChavesPartido(partidoId, listaPuntuacionesJugadores) {
+  /* 
+    'listaPuntuacionesJugadores' debe ser un array con este formato:
+    [
+      { partido_id: 10, jugador_id: 3, chaves: 4 },
+      { partido_id: 10, jugador_id: 5, chaves: 2 },
+      { partido_id: 10, jugador_id: 12, chaves: 6 }
+    ]
+  */
 
+  const { data, error } = await supabaseClient
+    .from('partido_jugadores')
+    .upsert(listaPuntuacionesJugadores, { onConflict: 'partido_id, jugador_id' });
+
+  if (error) {
+    console.error("Error al guardar chaves de jugadores:", error);
+    alert("Error al guardar puntuaciones individuales");
+  } else {
+    alert("✅ Puntuaciones de jugadores guardadas. Totales de equipo actualizados automáticamente.");
+  }
+}
+    async function cargarRankingJugadores(temporadaId) {
+  const { data, error } = await supabaseClient
+    .from('vista_ranking_jugadores')
+    .select('*')
+    .eq('temporada_id', temporadaId)
+    .order('total_chaves', { ascending: false });
+
+  if (error) {
+    console.error("Error cargando ranking:", error);
+    return;
+  }
+
+  console.log("Ranking de jugadores:", data);
+  // Dibujar tabla con data: jugador_nombre, equipo_nombre, total_chaves, partidos_jugados
+}
     // INICIALIZAR
     window.addEventListener('DOMContentLoaded', checkAuth);
   </script>
