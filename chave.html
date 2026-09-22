@@ -186,32 +186,47 @@
       </table>
     </div>
 
-    <!-- 3. JUGADORES -->
-    <div id="panel-jugadores" class="panel">
-      <h3>Xogadores</h3>
-      <form onsubmit="guardarJugador(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
-        <input type="hidden" id="jug-id">
-        <div class="form-group">
-          <label>Nome</label>
-          <input type="text" id="jug-nombre" required>
-        </div>
-        <div class="form-group">
-          <label>Apelidos</label>
-          <input type="text" id="jug-apellidos" required>
-        </div>
-        <div class="form-group">
-          <label>Alias / Alcume</label>
-          <input type="text" id="jug-alias">
-        </div>
-        <div style="grid-column: 1/-1;">
-          <button type="submit">Gardar Xogador</button>
-        </div>
-      </form>
-      <table id="tabla-jugadores">
-        <thead><tr><th>ID</th><th>Nome Completo</th><th>Alias</th><th>Accións</th></tr></thead>
-        <tbody></tbody>
-      </table>
+<!-- 3. JUGADORES -->
+<div id="panel-jugadores" class="panel">
+  <h3>Xestión de Xogadores e Fichaxes</h3>
+  <form onsubmit="guardarJugador(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+    <input type="hidden" id="jug-id">
+    <div class="form-group">
+      <label>Nome</label>
+      <input type="text" id="jug-nombre" required>
     </div>
+    <div class="form-group">
+      <label>Apelidos</label>
+      <input type="text" id="jug-apellidos" required>
+    </div>
+    <div class="form-group">
+      <label>Alias / Alcume</label>
+      <input type="text" id="jug-alias">
+    </div>
+    <div class="form-group">
+      <label>Equipo</label>
+      <select id="jug-equipo">
+        <option value="">-- Sen equipo (Libre) --</option>
+      </select>
+    </div>
+    <div style="grid-column: 1/-1;">
+      <button type="submit">Gardar Xogador</button>
+    </div>
+  </form>
+
+  <table id="tabla-jugadores">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Xogador</th>
+        <th>Alias</th>
+        <th>Equipo</th>
+        <th>Accións</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
 
     <!-- 4. PARTIDOS -->
     <div id="panel-partidos" class="panel">
@@ -410,33 +425,102 @@
     cargarEquipos();
   }
 
-  // 3. JUGADORES CRUD
-  async function cargarJugadores() {
-    const { data } = await db.from('jugadores').select('*').order('apellidos');
-    const tbody = document.querySelector('#tabla-jugadores tbody');
-    tbody.innerHTML = (data || []).map(j => `
+ // Cargar jugadores con su equipo actual
+async function cargarJugadores() {
+  const { data, error } = await db
+    .from('jugadores')
+    .select(`
+      id, nombre, apellidos, alias,
+      jugador_temporada (
+        id,
+        equipo_temporada (
+          equipos ( id, nombre )
+        )
+      )
+    `)
+    .order('apellidos');
+
+  if (error) {
+    console.error('Error al cargar jugadores:', error);
+    return;
+  }
+
+  const tbody = document.querySelector('#tabla-jugadores tbody');
+  tbody.innerHTML = (data || []).map(j => {
+    const jt = j.jugador_temporada?.[0];
+    const equipoNombre = jt?.equipo_temporada?.equipos?.nombre || '<span style="color: var(--muted)">Sin equipo</span>';
+
+    return `
       <tr>
         <td>${j.id}</td>
-        <td>${j.apellidos}, ${j.nombre}</td>
+        <td><b>${j.apellidos}, ${j.nombre}</b></td>
         <td>${j.alias || '-'}</td>
+        <td>${equipoNombre}</td>
         <td class="action-btns">
           <button onclick="eliminar('jugadores', ${j.id}, cargarJugadores)" class="btn-danger">Borrar</button>
         </td>
       </tr>
-    `).join('');
+    `;
+  }).join('');
+}
+
+// Guardar jugador y asociar directamente a su equipo
+async function guardarJugador(e) {
+  e.preventDefault();
+  const nombre = document.getElementById('jug-nombre').value;
+  const apellidos = document.getElementById('jug-apellidos').value;
+  const alias = document.getElementById('jug-alias').value;
+  const equipo_id = document.getElementById('jug-equipo').value;
+
+  // 1. Crear ficha del jugador
+  const { data: jugData, error: jugError } = await db
+    .from('jugadores')
+    .insert([{ nombre, apellidos, alias }])
+    .select();
+
+  if (jugError) {
+    alert('Error al guardar jugador: ' + jugError.message);
+    return;
   }
 
-  async function guardarJugador(e) {
-    e.preventDefault();
-    const nombre = document.getElementById('jug-nombre').value;
-    const apellidos = document.getElementById('jug-apellidos').value;
-    const alias = document.getElementById('jug-alias').value;
+  const jugadorId = jugData[0].id;
 
-    await db.from('jugadores').insert([{ nombre, apellidos, alias }]);
-    e.target.reset();
-    cargarJugadores();
+  // 2. Vincular jugador con el equipo si fue seleccionado
+  if (equipo_id) {
+    let { data: tempActiva } = await db.from('temporadas').select('id').eq('activa', true).limit(1);
+    let tempId = tempActiva?.[0]?.id;
+
+    if (!tempId) {
+      const { data: ultTemp } = await db.from('temporadas').select('id').order('id', { ascending: false }).limit(1);
+      tempId = ultTemp?.[0]?.id;
+    }
+
+    if (tempId) {
+      let { data: eqTemp } = await db.from('equipo_temporada')
+        .select('id')
+        .eq('equipo_id', equipo_id)
+        .eq('temporada_id', tempId)
+        .maybeSingle();
+
+      if (!eqTemp) {
+        const { data: novoEqTemp } = await db.from('equipo_temporada')
+          .insert([{ equipo_id, temporada_id: tempId }])
+          .select();
+        eqTemp = novoEqTemp?.[0];
+      }
+
+      if (eqTemp) {
+        await db.from('jugador_temporada').insert([{
+          jugador_id: jugadorId,
+          equipo_temporada_id: eqTemp.id
+        }]);
+      }
+    }
   }
 
+  e.target.reset();
+  cargarJugadores();
+}
   // 4. PARTIDOS CRUD
   async function cargarPartidos() {
     const { data } = await db.from('vista_calendario').select('*');
