@@ -693,31 +693,31 @@ async function guardarPartido(e) {
   cargarPartidos();
 }
     // 5. EVENTOS CRUD
-   // 1. Cargar Eventos en la Tabla
+// 1. Cargar la tabla de Eventos (ordenando por 'fecha')
 async function cargarEventos() {
   const { data, error } = await supabaseClient
     .from('eventos')
     .select('*')
-    .order('data', { ascending: true });
+    .order('fecha', { ascending: true }); // Usamos 'fecha' en lugar de 'data'
 
-  if (error) return console.error('Error cargando eventos:', error);
+  if (error) return console.error('Error cargando eventos:', error.message);
 
   const tbody = document.querySelector('#tabla-eventos tbody');
   if (tbody) {
     tbody.innerHTML = (data || []).map(ev => {
-      // Escapar texto para evitar fallos de sintaxis en el HTML inline
       const tituloEsc = (ev.titulo || '').replace(/'/g, "\\'");
-      const ubicacionEsc = (ev.ubicacion || '').replace(/'/g, "\\'");
+      const lugarEsc = (ev.lugar || ev.ubicacion || '').replace(/'/g, "\\'");
       const comentariosEsc = (ev.comentarios || '').replace(/'/g, "\\'");
+      const fechaVal = ev.fecha || '';
 
       return `
         <tr>
+          <td>${fechaVal ? new Date(fechaVal).toLocaleString('gl-ES', { dateStyle: 'short', timeStyle: 'short' }) : '-'}</td>
           <td><b>${ev.titulo}</b></td>
-          <td>${ev.data ? new Date(ev.data).toLocaleString() : '-'}</td>
-          <td>${ev.ubicacion || '-'}</td>
+          <td>${ev.lugar || ev.ubicacion || '-'}</td>
           <td>${ev.comentarios || '-'}</td>
           <td class="action-btns">
-            <button onclick="editarEvento(${ev.id}, '${tituloEsc}', '${ev.data || ''}', '${ubicacionEsc}', '${comentariosEsc}')">Editar</button>
+            <button onclick="editarEvento(${ev.id}, '${tituloEsc}', '${fechaVal}', '${lugarEsc}', '${comentariosEsc}')">Editar</button>
             <button onclick="eliminar('eventos', ${ev.id}, cargarEventos)" class="btn-danger">Borrar</button>
           </td>
         </tr>
@@ -726,29 +726,34 @@ async function cargarEventos() {
   }
 }
 
-// 2. Cargar datos en el formulario para Editar
-function editarEvento(id, titulo, data, ubicacion, comentarios) {
-  document.getElementById('ev-id').value = id;
-  document.getElementById('ev-titulo').value = titulo;
-  document.getElementById('ev-data').value = data ? data.slice(0, 16) : ''; // Formato para datetime-local
-  document.getElementById('ev-ubicacion').value = ubicacion || '';
-  document.getElementById('ev-comentarios').value = comentarios || '';
+// 2. Cargar evento en el formulario para editar
+function editarEvento(id, titulo, fecha, lugar, comentarios) {
+  if (document.getElementById('eve-id')) document.getElementById('eve-id').value = id;
+  if (document.getElementById('eve-titulo')) document.getElementById('eve-titulo').value = titulo;
+  if (document.getElementById('eve-fecha')) document.getElementById('eve-fecha').value = fecha ? fecha.slice(0, 16) : '';
+  if (document.getElementById('eve-lugar')) document.getElementById('eve-lugar').value = lugar || '';
+  if (document.getElementById('eve-comentarios')) document.getElementById('eve-comentarios').value = comentarios || '';
 }
 
-// 3. Guardar o Actualizar Evento
+// 3. Guardar o actualizar Evento (Protegido contra elementos null)
 async function guardarEvento(e) {
   e.preventDefault();
 
-  const id = document.getElementById('ev-id').value;
-  const titulo = document.getElementById('ev-titulo').value;
-  const data = document.getElementById('ev-data').value;
-  const ubicacion = document.getElementById('ev-ubicacion').value;
-  const comentarios = document.getElementById('ev-comentarios').value;
+  const id = document.getElementById('eve-id')?.value;
+  const titulo = document.getElementById('eve-titulo')?.value;
+  const fecha = document.getElementById('eve-fecha')?.value;
+  const lugar = document.getElementById('eve-lugar')?.value || '';
+  const comentarios = document.getElementById('eve-comentarios')?.value || '';
+
+  if (!titulo || !fecha) {
+    alert('⚠️ Por favor, rechea o título e a data do evento.');
+    return;
+  }
 
   const payload = {
     titulo,
-    data,
-    ubicacion,
+    fecha,
+    lugar,
     comentarios
   };
 
@@ -757,13 +762,12 @@ async function guardarEvento(e) {
     : await supabaseClient.from('eventos').insert([payload]);
 
   if (error) {
-    alert('Error al guardar evento: ' + error.message);
+    alert('Error ao gardar evento: ' + error.message);
   } else {
-    resetForm('ev');
+    resetForm('eve');
     cargarEventos();
   }
 }
-
     // ELIMINACIÓN GENÉRICA
 async function eliminar(tabla, id, callback) {
   if (!id) return;
