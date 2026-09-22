@@ -1,544 +1,672 @@
 <!DOCTYPE html>
-<html lang="gl">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Panel de Administración - Liga</title>
-  <!-- Supabase JS CDN -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Chave Compostela - Panel Admin</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
-      --primary: #1e3a8a;
-      --primary-hover: #1d4ed8;
-      --bg: #f8fafc;
-      --card-bg: #ffffff;
-      --text: #0f172a;
-      --muted: #64748b;
-      --border: #e2e8f0;
-      --danger: #dc2626;
-      --danger-hover: #b91c1c;
+      --primary: #8B0000;
+      --gold: #D4AF37;
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: #334155;
+      --danger: #ef4444;
+      --success: #22c55e;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-    body { background-color: var(--bg); color: var(--text); padding: 20px; line-height: 1.5; }
-    .container { max-width: 1100px; margin: 0 auto; }
+    body { background-color: var(--bg); color: var(--text); padding: 15px; }
 
-    header { margin-bottom: 20px; border-bottom: 2px solid var(--border); padding-bottom: 15px; }
-    h1 { color: var(--primary); font-size: 1.8rem; }
-
-    nav { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-    nav button {
+    /* Login Screen */
+    #login-screen {
+      max-width: 400px;
+      margin: 80px auto;
       background: var(--card-bg);
+      padding: 30px;
+      border-radius: 16px;
+      border: 1px solid var(--gold);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      text-align: center;
+    }
+    #login-screen h2 { color: var(--gold); margin-bottom: 20px; }
+
+    /* Dashboard Layout */
+    #admin-dashboard { display: none; max-width: 1100px; margin: 0 auto; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 15px;
+      border-bottom: 2px solid var(--gold);
+      margin-bottom: 20px;
+    }
+    header h1 { font-size: 1.5rem; color: var(--gold); }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    .tab-btn {
+      background: var(--card-bg);
+      color: var(--text);
       border: 1px solid var(--border);
-      padding: 10px 20px;
-      border-radius: 6px;
+      padding: 10px 16px;
+      border-radius: 8px;
       cursor: pointer;
       font-weight: 600;
-      color: var(--muted);
-      transition: all 0.2s;
     }
-    nav button.active, nav button:hover {
-      background: var(--primary);
-      color: white;
-      border-color: var(--primary);
-    }
+    .tab-btn.active { background: var(--primary); border-color: var(--gold); color: #fff; }
 
-    .panel { display: none; background: var(--card-bg); padding: 25px; border-radius: 8px; border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    /* Forms and Inputs */
+    .panel { display: none; background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border); }
     .panel.active { display: block; }
-
-    h3 { margin-bottom: 15px; color: var(--primary); }
-
-    .form-group { display: flex; flex-direction: column; gap: 5px; }
-    label { font-size: 0.875rem; font-weight: 600; color: var(--muted); }
-    input, select, button {
+    
+    .form-group { margin-bottom: 15px; text-align: left; }
+    label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 0.85rem; }
+    input, select, textarea {
+      width: 100%;
       padding: 10px;
+      background: #0f172a;
       border: 1px solid var(--border);
+      color: #fff;
       border-radius: 6px;
       font-size: 0.95rem;
     }
-    input:focus, select:focus { outline: 2px solid var(--primary); border-color: transparent; }
-
-    button[type="submit"], button.btn-primary {
-      background: var(--primary);
-      color: white;
+    button {
+      background: var(--gold);
+      color: #000;
       border: none;
-      font-weight: 600;
+      padding: 10px 18px;
+      font-weight: bold;
+      border-radius: 6px;
       cursor: pointer;
     }
-    button[type="submit"]:hover, button.btn-primary:hover { background: var(--primary-hover); }
+    button.btn-secondary { background: var(--border); color: var(--text); }
+    button.btn-danger { background: var(--danger); color: #fff; }
+    button.btn-logout { background: transparent; color: var(--muted); border: 1px solid var(--border); }
 
-    button.btn-danger { background: var(--danger); color: white; border: none; cursor: pointer; }
-    button.btn-danger:hover { background: var(--danger-hover); }
-
+    /* Tables */
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-    th { background: #f1f5f9; color: var(--muted); font-weight: 600; }
-    tr:hover { background: #f8fafc; }
+    th, td { padding: 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    th { color: var(--gold); background: #0f172a; }
+    .action-btns { display: flex; gap: 6px; }
 
-    .action-btns { display: flex; gap: 5px; }
-    .action-btns button { padding: 5px 10px; font-size: 0.8rem; }
+    /* Responsive */
+    @media (max-width: 600px) {
+      th, td { padding: 6px; font-size: 0.8rem; }
+      .tabs { flex-direction: column; }
+    }
   </style>
 </head>
 <body>
 
-<div class="container">
-  <header>
-    <h1>Panel de Control - Liga</h1>
-  </header>
-
-  <nav>
-    <button class="tab-btn active" onclick="mostrarTab('equipos')">Equipos</button>
-    <button class="tab-btn" onclick="mostrarTab('jugadores')">Xogadores</button>
-    <button class="tab-btn" onclick="mostrarTab('partidos')">Partidos</button>
-    <button class="tab-btn" onclick="mostrarTab('temporadas')">Temporadas</button>
-  </nav>
-
-  <!-- 1. EQUIPOS -->
-  <div id="panel-equipos" class="panel active">
-    <h3>Xestión de Equipos</h3>
-    <form onsubmit="guardarEquipo(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-      <div class="form-group">
-        <label>Nome do Equipo</label>
-        <input type="text" id="eq-nombre" required placeholder="Ex: SD Compostela">
-      </div>
-      <div class="form-group">
-        <label>Localidade</label>
-        <input type="text" id="eq-localidad" placeholder="Ex: Santiago">
-      </div>
-      <div style="grid-column: 1/-1;">
-        <button type="submit">Gardar Equipo</button>
-      </div>
-    </form>
-
-    <table id="tabla-equipos">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Equipo</th>
-          <th>Localidade</th>
-          <th>Accións</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen">
+    <h2>🔑 Admin Chave</h2>
+    <div class="form-group">
+      <label>Email Administrador</label>
+      <input type="email" id="login-email" placeholder="admin@chavecompostela.gal">
+    </div>
+    <div class="form-group">
+      <label>Contraseña</label>
+      <input type="password" id="login-password">
+    </div>
+    <button onclick="login()" style="width: 100%;">Iniciar Sesión</button>
+    <p id="login-error" style="color: var(--danger); margin-top: 10px; font-size: 0.85rem; display: none;"></p>
   </div>
 
-  <!-- 2. JUGADORES -->
-  <div id="panel-jugadores" class="panel">
-    <h3>Xestión de Xogadores e Fichaxes</h3>
-    <form id="form-jugador" onsubmit="guardarJugador(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
-      <input type="hidden" id="jug-id">
-      <div class="form-group">
-        <label>Nome</label>
-        <input type="text" id="jug-nombre" required>
-      </div>
-      <div class="form-group">
-        <label>Apelidos</label>
-        <input type="text" id="jug-apellidos" required>
-      </div>
-      <div class="form-group">
-        <label>Alias / Alcume</label>
-        <input type="text" id="jug-alias">
-      </div>
-      <div class="form-group">
-        <label>Equipo</label>
-        <select id="jug-equipo">
-          <option value="">-- Sen equipo (Libre) --</option>
-        </select>
-      </div>
-      <div style="grid-column: 1/-1; display: flex; gap: 10px;">
-        <button type="submit" id="btn-jugador">Gardar Xogador</button>
-        <button type="button" id="btn-cancelar-jug" onclick="cancelarEdicionJugador()" style="display: none; background-color: #6c757d; color: white;">Cancelar</button>
-      </div>
-    </form>
+  <!-- DASHBOARD -->
+  <div id="admin-dashboard">
+    <header>
+      <h1>🛡️ Xestión Chave Compostela</h1>
+      <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
+    </header>
 
-    <table id="tabla-jugadores">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Xogador</th>
-          <th>Alias</th>
-          <th>Equipo</th>
-          <th>Accións</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <!-- NAVEGACIÓN -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab(event, 'temporadas')">Temporadas</button>
+      <button class="tab-btn" onclick="switchTab(event, 'equipos')">Equipos</button>
+      <button class="tab-btn" onclick="switchTab(event, 'jugadores')">Xogadores</button>
+      <button class="tab-btn" onclick="switchTab(event, 'partidos')">Partidos & Resultados</button>
+      <button class="tab-btn" onclick="switchTab(event, 'eventos')">Eventos</button>
+    </div>
+
+    <!-- 1. TEMPORADAS -->
+    <div id="panel-temporadas" class="panel active">
+      <h3 id="temp-form-title">Crear / Editar Temporada</h3>
+      <form onsubmit="guardarTemporada(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+        <input type="hidden" id="temp-id">
+        <div class="form-group">
+          <label>Nome Temporada (Ej: 2025/2026)</label>
+          <input type="text" id="temp-nombre" required>
+        </div>
+        <div class="form-group">
+          <label>Fecha Inicio</label>
+          <input type="date" id="temp-inicio">
+        </div>
+        <div class="form-group">
+          <label>Estado</label>
+          <select id="temp-activa">
+            <option value="false">Inactiva</option>
+            <option value="true">Activa (Actual)</option>
+          </select>
+        </div>
+        <div style="grid-column: 1/-1; display: flex; gap: 10px;">
+          <button type="submit">Gardar Temporada</button>
+          <button type="button" class="btn-secondary" onclick="resetForm('temp')">Cancelar / Limpar</button>
+        </div>
+      </form>
+      <table id="tabla-temporadas">
+        <thead><tr><th>ID</th><th>Nome</th><th>Inicio</th><th>Activa</th><th>Accións</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- 2. EQUIPOS -->
+    <div id="panel-equipos" class="panel">
+      <h3>Xestión de Equipos</h3>
+      <form onsubmit="guardarEquipo(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+        <input type="hidden" id="eq-id">
+        <div class="form-group">
+          <label>Nome do Equipo</label>
+          <input type="text" id="eq-nombre" required>
+        </div>
+        <div class="form-group">
+          <label>Localidade</label>
+          <input type="text" id="eq-localidad" value="Santiago de Compostela">
+        </div>
+        <div style="grid-column: 1/-1; display: flex; gap: 10px;">
+          <button type="submit">Gardar Equipo</button>
+          <button type="button" class="btn-secondary" onclick="resetForm('eq')">Cancelar / Limpar</button>
+        </div>
+      </form>
+      <table id="tabla-equipos">
+        <thead><tr><th>ID</th><th>Equipo</th><th>Localidade</th><th>Accións</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- 3. JUGADORES (CON ASIGNACIÓN DE EQUIPO) -->
+    <div id="panel-jugadores" class="panel">
+      <h3>Xogadores</h3>
+      <form onsubmit="guardarJugador(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+        <input type="hidden" id="jug-id">
+        <div class="form-group">
+          <label>Nome</label>
+          <input type="text" id="jug-nombre" required>
+        </div>
+        <div class="form-group">
+          <label>Apelidos</label>
+          <input type="text" id="jug-apellidos" required>
+        </div>
+        <div class="form-group">
+          <label>Alias / Alcume</label>
+          <input type="text" id="jug-alias">
+        </div>
+        <div class="form-group">
+          <label>Equipo Asignado</label>
+          <select id="jug-equipo">
+            <option value="">-- Sen Equipo (Libre) --</option>
+          </select>
+        </div>
+        <div style="grid-column: 1/-1; display: flex; gap: 10px;">
+          <button type="submit">Gardar Xogador</button>
+          <button type="button" class="btn-secondary" onclick="resetForm('jug')">Cancelar / Limpar</button>
+        </div>
+      </form>
+      <table id="tabla-jugadores">
+        <thead><tr><th>ID</th><th>Nome Completo</th><th>Alias</th><th>Equipo</th><th>Accións</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- 4. PARTIDOS -->
+    <div id="panel-partidos" class="panel">
+      <h3>Crear / Actualizar Resultado de Partido</h3>
+      <p style="color: var(--gold); font-size: 0.85rem; margin-top: 5px;">⚠️ Recordatorio: Na Chave non hai empates. En estado "finalizado", a puntuación debe ser diferente.</p>
+      
+      <form onsubmit="guardarPartido(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 15px;">
+        <input type="hidden" id="part-id">
+        <div class="form-group">
+          <label>Xornada Nº</label>
+          <input type="number" id="part-jornada" value="1" min="1" required>
+        </div>
+        <div class="form-group">
+          <label>Equipo Local</label>
+          <select id="part-local" required></select>
+        </div>
+        <div class="form-group">
+          <label>Equipo Visitante</label>
+          <select id="part-visitante" required></select>
+        </div>
+        <div class="form-group">
+          <label>Puntos Local</label>
+          <input type="number" id="part-pts-loc" value="0" min="0">
+        </div>
+        <div class="form-group">
+          <label>Puntos Visitante</label>
+          <input type="number" id="part-pts-vis" value="0" min="0">
+        </div>
+        <div class="form-group">
+          <label>Chaves Local</label>
+          <input type="number" id="part-chv-loc" value="0" min="0">
+        </div>
+        <div class="form-group">
+          <label>Chaves Visitante</label>
+          <input type="number" id="part-chv-vis" value="0" min="0">
+        </div>
+        <div class="form-group">
+          <label>Estado</label>
+          <select id="part-estado">
+            <option value="pendiente">Pendiente</option>
+            <option value="finalizado">Finalizado</option>
+            <option value="suspendido">Suspendido</option>
+          </select>
+        </div>
+        <div style="grid-column: 1/-1; display: flex; gap: 10px;">
+          <button type="submit">Gardar Partido / Marcador</button>
+          <button type="button" class="btn-secondary" onclick="resetForm('part')">Cancelar / Limpar</button>
+        </div>
+      </form>
+      <table id="tabla-partidos">
+        <thead><tr><th>Xor.</th><th>Local</th><th>Visitante</th><th>Resultado</th><th>Chaves</th><th>Estado</th><th>Accións</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- 5. EVENTOS -->
+    <div id="panel-eventos" class="panel">
+      <h3>Eventos e Torneos</h3>
+      <form onsubmit="guardarEvento(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+        <input type="hidden" id="eve-id">
+        <div class="form-group">
+          <label>Título Evento</label>
+          <input type="text" id="eve-titulo" required>
+        </div>
+        <div class="form-group">
+          <label>Data e Hora</label>
+          <input type="datetime-local" id="eve-fecha" required>
+        </div>
+        <div class="form-group">
+          <label>Lugar</label>
+          <input type="text" id="eve-lugar">
+        </div>
+        <div style="grid-column: 1/-1; display: flex; gap: 10px;">
+          <button type="submit">Gardar Evento</button>
+          <button type="button" class="btn-secondary" onclick="resetForm('eve')">Cancelar / Limpar</button>
+        </div>
+      </form>
+      <table id="tabla-eventos">
+        <thead><tr><th>Data</th><th>Título</th><th>Lugar</th><th>Accións</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
 
-  <!-- 3. PARTIDOS -->
-  <div id="panel-partidos" class="panel">
-    <h3>Xestión de Partidos e Resultados</h3>
-    <form onsubmit="guardarPartido(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
-      <div class="form-group">
-        <label>Xornada</label>
-        <input type="number" id="part-jornada" required placeholder="Ex: 1">
-      </div>
-      <div class="form-group">
-        <label>Equipo Local</label>
-        <select id="part-local" required></select>
-      </div>
-      <div class="form-group">
-        <label>Goles Local</label>
-        <input type="number" id="part-goles-local" min="0">
-      </div>
-      <div class="form-group">
-        <label>Equipo Visitante</label>
-        <select id="part-visitante" required></select>
-      </div>
-      <div class="form-group">
-        <label>Goles Visitante</label>
-        <input type="number" id="part-goles-visitante" min="0">
-      </div>
-      <div style="grid-column: 1/-1;">
-        <button type="submit">Gardar Partido / Resultado</button>
-      </div>
-    </form>
+  <script>
+    // CONFIGURACIÓN SUPABASE
+    const SUPABASE_URL = 'https://tlpkxrwwdosrzqcqwybq.supabase.co/';
+    const SUPABASE_ANON_KEY = 'sb_publishable_C2pLthVQIIFVGAYJP4JPjw_5n1VwXIh';
+    const { createClient } = window.supabase;
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    <table id="tabla-partidos">
-      <thead>
-        <tr>
-          <th>Xornada</th>
-          <th>Local</th>
-          <th>Resultado</th>
-          <th>Visitante</th>
-          <th>Accións</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <!-- 4. TEMPORADAS -->
-  <div id="panel-temporadas" class="panel">
-    <h3>Temporadas</h3>
-    <form onsubmit="guardarTemporada(event)" style="display: flex; gap: 15px; align-items: flex-end;">
-      <div class="form-group" style="flex: 1;">
-        <label>Nome da Temporada</label>
-        <input type="text" id="temp-nombre" required placeholder="Ex: 2024/2025">
-      </div>
-      <button type="submit">Crear Temporada</button>
-    </form>
-
-    <table id="tabla-temporadas">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Temporada</th>
-          <th>Estado</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-</div>
-
-<script>
-   // CONFIGURACIÓN SUPABASE
-   const SUPABASE_URL = 'https://tlpkxrwwdosrzqcqwybq.supabase.co/';
-   const SUPABASE_ANON_KEY = 'sb_publishable_C2pLthVQIIFVGAYJP4JPjw_5n1VwXIh';
-
-  const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-  // NAVEGACIÓN TAB
-  function mostrarTab(tabId) {
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-
-    document.getElementById(`panel-${tabId}`).classList.add('active');
-    event.target.classList.add('active');
-
-    if (tabId === 'equipos') cargarEquipos();
-    if (tabId === 'jugadores') { cargarEquipos(); cargarJugadores(); }
-    if (tabId === 'partidos') { cargarEquipos(); cargarPartidos(); }
-    if (tabId === 'temporadas') cargarTemporadas();
-  }
-
-  // FUNCIÓN GENÉRICA PARA BORRAR
-  async function eliminar(tabla, id, callback) {
-    if (!confirm('¿Estás seguro de que desexas eliminar este rexistro?')) return;
-    const { error } = await db.from(tabla).delete().eq('id', id);
-    if (error) alert('Error ao eliminar: ' + error.message);
-    else callback();
-  }
-
-  // --- EQUIPOS ---
-  async function cargarEquipos() {
-    const { data, error } = await db.from('equipos').select('*').order('nombre');
-    if (error) return console.error(error);
-
-    const tbody = document.querySelector('#tabla-equipos tbody');
-    tbody.innerHTML = (data || []).map(eq => `
-      <tr>
-        <td>${eq.id}</td>
-        <td><b>${eq.nombre}</b></td>
-        <td>${eq.localidad || '-'}</td>
-        <td class="action-btns">
-          <button onclick="eliminar('equipos', ${eq.id}, cargarEquipos)" class="btn-danger">Borrar</button>
-        </td>
-      </tr>
-    `).join('');
-
-    // Actualizar desplegables
-    const opcionesEquipos = '<option value="">-- Sen equipo (Libre) --</option>' + 
-      (data || []).map(eq => `<option value="${eq.id}">${eq.nombre}</option>`).join('');
-
-    const elJugEquipo = document.getElementById('jug-equipo');
-    if (elJugEquipo) elJugEquipo.innerHTML = opcionesEquipos;
-
-    const elLocal = document.getElementById('part-local');
-    const elVisitante = document.getElementById('part-visitante');
-    if (elLocal && elVisitante) {
-      const opsConSeleccion = (data || []).map(eq => `<option value="${eq.id}">${eq.nombre}</option>`).join('');
-      elLocal.innerHTML = opsConSeleccion;
-      elVisitante.innerHTML = opsConSeleccion;
+    // CONTROL DE SESIÓN
+    async function checkAuth() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('admin-dashboard').style.display = 'block';
+        cargarTodo();
+      } else {
+        document.getElementById('login-screen').style.display = 'block';
+        document.getElementById('admin-dashboard').style.display = 'none';
+      }
     }
-  }
 
-  async function guardarEquipo(e) {
-    e.preventDefault();
-    const nombre = document.getElementById('eq-nombre').value;
-    const localidad = document.getElementById('eq-localidad').value;
+    async function login() {
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+      const errBox = document.getElementById('login-error');
 
-    const { error } = await db.from('equipos').insert([{ nombre, localidad }]);
-    if (error) alert('Error: ' + error.message);
-    else {
-      e.target.reset();
-      cargarEquipos();
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        errBox.innerText = error.message;
+        errBox.style.display = 'block';
+      } else {
+        errBox.style.display = 'none';
+        checkAuth();
+      }
     }
-  }
 
-  // --- JUGADORES ---
-  async function cargarJugadores() {
-    const { data, error } = await db
-      .from('jugadores')
-      .select(`
-        id, nombre, apellidos, alias,
-        jugador_temporada (
-          id,
-          equipo_temporada (
-            equipos ( id, nombre )
-          )
-        )
-      `)
-      .order('apellidos');
+    async function logout() {
+      await supabase.auth.signOut();
+      checkAuth();
+    }
 
-    if (error) return console.error('Error al cargar jugadores:', error);
+    function switchTab(e, tab) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      if (e && e.target) e.target.classList.add('active');
+      document.getElementById('panel-' + tab).classList.add('active');
+    }
 
-    const tbody = document.querySelector('#tabla-jugadores tbody');
-    tbody.innerHTML = (data || []).map(j => {
-      const jt = j.jugador_temporada?.[0];
-      const equipoObj = jt?.equipo_temporada?.equipos;
-      const equipoNombre = equipoObj?.nombre || '<span style="color: var(--muted)">Sin equipo</span>';
-      const equipoId = equipoObj?.id || '';
+    function resetForm(prefix) {
+      const idEl = document.getElementById(prefix + '-id');
+      if (idEl) idEl.value = '';
+      const form = idEl ? idEl.closest('form') : null;
+      if (form) form.reset();
+    }
 
-      const nomEsc = (j.nombre || '').replace(/'/g, "\\'");
-      const apeEsc = (j.apellidos || '').replace(/'/g, "\\'");
-      const aliEsc = (j.alias || '').replace(/'/g, "\\'");
+    // CARGA GENERAL
+    async function cargarTodo() {
+      await cargarEquipos(); // Se carga primero para rellenar los desplegables de equipos
+      cargarTemporadas();
+      cargarJugadores();
+      cargarPartidos();
+      cargarEventos();
+    }
 
-      return `
+    // 1. TEMPORADAS CRUD
+    async function cargarTemporadas() {
+      const { data, error } = await supabase.from('temporadas').select('*').order('id', { ascending: false });
+      if (error) return console.error(error);
+      const tbody = document.querySelector('#tabla-temporadas tbody');
+      tbody.innerHTML = (data || []).map(t => `
         <tr>
-          <td>${j.id}</td>
-          <td><b>${j.apellidos}, ${j.nombre}</b></td>
-          <td>${j.alias || '-'}</td>
-          <td>${equipoNombre}</td>
+          <td>${t.id}</td>
+          <td><b>${t.nombre}</b></td>
+          <td>${t.fecha_inicio || '-'}</td>
+          <td>${t.activa ? '✅ Si' : '❌ No'}</td>
           <td class="action-btns">
-            <button onclick="editarJugador(${j.id}, '${nomEsc}', '${apeEsc}', '${aliEsc}', '${equipoId}')">Editar</button>
-            <button onclick="eliminar('jugadores', ${j.id}, cargarJugadores)" class="btn-danger">Borrar</button>
+            <button onclick="editarTemporada(${t.id}, '${t.nombre}', '${t.fecha_inicio || ''}', ${t.activa})">Editar</button>
+            <button onclick="eliminar('temporadas', ${t.id}, cargarTemporadas)" class="btn-danger">Borrar</button>
           </td>
         </tr>
-      `;
-    }).join('');
-  }
-
-  function editarJugador(id, nombre, apellidos, alias, equipoId) {
-    document.getElementById('jug-id').value = id;
-    document.getElementById('jug-nombre').value = nombre;
-    document.getElementById('jug-apellidos').value = apellidos;
-    document.getElementById('jug-alias').value = alias;
-    document.getElementById('jug-equipo').value = equipoId;
-
-    document.getElementById('btn-jugador').innerText = 'Actualizar Xogador';
-    document.getElementById('btn-cancelar-jug').style.display = 'inline-block';
-    document.getElementById('form-jugador').scrollIntoView({ behavior: 'smooth' });
-  }
-
-  function cancelarEdicionJugador() {
-    document.getElementById('jug-id').value = '';
-    document.getElementById('form-jugador').reset();
-    document.getElementById('btn-jugador').innerText = 'Gardar Xogador';
-    document.getElementById('btn-cancelar-jug').style.display = 'none';
-  }
-
-  async function guardarJugador(e) {
-    e.preventDefault();
-    const id = document.getElementById('jug-id').value;
-    const nombre = document.getElementById('jug-nombre').value;
-    const apellidos = document.getElementById('jug-apellidos').value;
-    const alias = document.getElementById('jug-alias').value;
-    const equipo_id = document.getElementById('jug-equipo').value;
-
-    let jugadorId = id;
-
-    if (id) {
-      const { error: updateError } = await db
-        .from('jugadores')
-        .update({ nombre, apellidos, alias })
-        .eq('id', id);
-
-      if (updateError) {
-        alert('Error al actualizar jugador: ' + updateError.message);
-        return;
-      }
-    } else {
-      const { data: jugData, error: jugError } = await db
-        .from('jugadores')
-        .insert([{ nombre, apellidos, alias }])
-        .select();
-
-      if (jugError) {
-        alert('Error al guardar jugador: ' + jugError.message);
-        return;
-      }
-      jugadorId = jugData[0].id;
+      `).join('');
     }
 
-    let { data: tempActiva } = await db.from('temporadas').select('id').eq('activa', true).limit(1);
-    let tempId = tempActiva?.[0]?.id;
-
-    if (!tempId) {
-      const { data: ultTemp } = await db.from('temporadas').select('id').order('id', { ascending: false }).limit(1);
-      tempId = ultTemp?.[0]?.id;
+    function editarTemporada(id, nombre, fecha_inicio, activa) {
+      document.getElementById('temp-id').value = id;
+      document.getElementById('temp-nombre').value = nombre;
+      document.getElementById('temp-inicio').value = fecha_inicio;
+      document.getElementById('temp-activa').value = activa ? 'true' : 'false';
     }
 
-    if (tempId) {
-      const { data: eqTemps } = await db.from('equipo_temporada').select('id, equipo_id').eq('temporada_id', tempId);
-      const eqTempIds = (eqTemps || []).map(et => et.id);
+    async function guardarTemporada(e) {
+      e.preventDefault();
+      const id = document.getElementById('temp-id').value;
+      const nombre = document.getElementById('temp-nombre').value;
+      const fecha_inicio = document.getElementById('temp-inicio').value || null;
+      const activa = document.getElementById('temp-activa').value === 'true';
 
-      let { data: jtExistente } = await db
-        .from('jugador_temporada')
-        .select('id')
-        .eq('jugador_id', jugadorId)
-        .in('equipo_temporada_id', eqTempIds.length > 0 ? eqTempIds : [0])
-        .maybeSingle();
+      const payload = { nombre, fecha_inicio, activa };
+      const { error } = id 
+        ? await supabase.from('temporadas').update(payload).eq('id', id)
+        : await supabase.from('temporadas').insert([payload]);
 
-      if (equipo_id) {
-        let eqTemp = (eqTemps || []).find(et => et.equipo_id == equipo_id);
-        if (!eqTemp) {
-          const { data: novoEqTemp } = await db.from('equipo_temporada')
-            .insert([{ equipo_id, temporada_id: tempId }])
-            .select();
-          eqTemp = novoEqTemp?.[0];
-        }
-
-        if (eqTemp) {
-          if (jtExistente) {
-            await db.from('jugador_temporada')
-              .update({ equipo_temporada_id: eqTemp.id })
-              .eq('id', jtExistente.id);
-          } else {
-            await db.from('jugador_temporada')
-              .insert([{ jugador_id: jugadorId, equipo_temporada_id: eqTemp.id }]);
-          }
-        }
+      if (error) {
+        alert('Error: ' + error.message);
       } else {
-        if (jtExistente) {
-          await db.from('jugador_temporada').delete().eq('id', jtExistente.id);
+        resetForm('temp');
+        cargarTemporadas();
+      }
+    }
+
+    // 2. EQUIPOS CRUD
+    async function cargarEquipos() {
+      const { data, error } = await supabase.from('equipos').select('*').order('nombre');
+      if (error) return console.error(error);
+      const tbody = document.querySelector('#tabla-equipos tbody');
+      tbody.innerHTML = (data || []).map(eq => `
+        <tr>
+          <td>${eq.id}</td>
+          <td><b>${eq.nombre}</b></td>
+          <td>${eq.localidad || '-'}</td>
+          <td class="action-btns">
+            <button onclick="editarEquipo(${eq.id}, '${eq.nombre}', '${eq.localidad || ''}')">Editar</button>
+            <button onclick="eliminar('equipos', ${eq.id}, cargarEquipos)" class="btn-danger">Borrar</button>
+          </td>
+        </tr>
+      `).join('');
+
+      // Rellenar desplegables de Partidos
+      const selectsPartidos = [document.getElementById('part-local'), document.getElementById('part-visitante')];
+      selectsPartidos.forEach(s => {
+        if(s) s.innerHTML = (data || []).map(eq => `<option value="${eq.id}">${eq.nombre}</option>`).join('');
+      });
+
+      // Rellenar desplegable de Jugadores
+      const selectJugEquipo = document.getElementById('jug-equipo');
+      if (selectJugEquipo) {
+        selectJugEquipo.innerHTML = '<option value="">-- Sen Equipo (Libre) --</option>' + 
+          (data || []).map(eq => `<option value="${eq.id}">${eq.nombre}</option>`).join('');
+      }
+    }
+
+    function editarEquipo(id, nombre, localidad) {
+      document.getElementById('eq-id').value = id;
+      document.getElementById('eq-nombre').value = nombre;
+      document.getElementById('eq-localidad').value = localidad;
+    }
+
+    async function guardarEquipo(e) {
+      e.preventDefault();
+      const id = document.getElementById('eq-id').value;
+      const nombre = document.getElementById('eq-nombre').value;
+      const localidad = document.getElementById('eq-localidad').value;
+
+      const payload = { nombre, localidad };
+      const { error } = id 
+        ? await supabase.from('equipos').update(payload).eq('id', id)
+        : await supabase.from('equipos').insert([payload]);
+
+      if (error) {
+        alert('Error: ' + error.message);
+      } else {
+        resetForm('eq');
+        await cargarEquipos();
+        cargarJugadores(); // Actualiza también la vista de jugadores
+      }
+    }
+
+    // 3. JUGADORES CRUD (CON SOPORTE DE EQUIPO)
+    async function cargarJugadores() {
+      // Consulta relacional para obtener el nombre del equipo asignado
+      const { data, error } = await supabase
+        .from('jugadores')
+        .select('*, equipos(nombre)')
+        .order('apellidos');
+
+      if (error) return console.error(error);
+
+      const tbody = document.querySelector('#tabla-jugadores tbody');
+      tbody.innerHTML = (data || []).map(j => {
+        const nombreEquipo = j.equipos ? j.equipos.nombre : '<em style="color:var(--muted)">Sin equipo</em>';
+        return `
+          <tr>
+            <td>${j.id}</td>
+            <td>${j.apellidos}, ${j.nombre}</td>
+            <td>${j.alias || '-'}</td>
+            <td><b>${nombreEquipo}</b></td>
+            <td class="action-btns">
+              <button onclick="editarJugador(${j.id}, '${j.nombre}', '${j.apellidos}', '${j.alias || ''}', ${j.equipo_id || 'null'})">Editar</button>
+              <button onclick="eliminar('jugadores', ${j.id}, cargarJugadores)" class="btn-danger">Borrar</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function editarJugador(id, nombre, apellidos, alias, equipoId) {
+      document.getElementById('jug-id').value = id;
+      document.getElementById('jug-nombre').value = nombre;
+      document.getElementById('jug-apellidos').value = apellidos;
+      document.getElementById('jug-alias').value = alias;
+      document.getElementById('jug-equipo').value = equipoId || '';
+    }
+
+    async function guardarJugador(e) {
+      e.preventDefault();
+      const id = document.getElementById('jug-id').value;
+      const nombre = document.getElementById('jug-nombre').value;
+      const apellidos = document.getElementById('jug-apellidos').value;
+      const alias = document.getElementById('jug-alias').value;
+      const equipoVal = document.getElementById('jug-equipo').value;
+      const equipo_id = equipoVal ? parseInt(equipoVal) : null;
+
+      const payload = { nombre, apellidos, alias, equipo_id };
+      const { error } = id 
+        ? await supabase.from('jugadores').update(payload).eq('id', id)
+        : await supabase.from('jugadores').insert([payload]);
+
+      if (error) {
+        alert('Error al guardar jugador: ' + error.message);
+      } else {
+        resetForm('jug');
+        cargarJugadores();
+      }
+    }
+
+    // 4. PARTIDOS CRUD
+    async function cargarPartidos() {
+      const { data, error } = await supabase.from('vista_calendario').select('*');
+      if (error) return console.error(error);
+      const tbody = document.querySelector('#tabla-partidos tbody');
+      tbody.innerHTML = (data || []).map(p => `
+        <tr>
+          <td>${p.jornada}</td>
+          <td>${p.equipo_local}</td>
+          <td>${p.equipo_visitante}</td>
+          <td><b>${p.puntos_local} - ${p.puntos_visitante}</b></td>
+          <td>${p.chaves_local} / ${p.chaves_visitante}</td>
+          <td>${p.estado}</td>
+          <td class="action-btns">
+            <button onclick="editarPartido(${p.partido_id || p.id}, ${p.jornada}, ${p.equipo_local_id}, ${p.equipo_visitante_id}, ${p.puntos_local}, ${p.puntos_visitante}, ${p.chaves_local}, ${p.chaves_visitante}, '${p.estado}')">Editar</button>
+            <button onclick="eliminar('partidos', ${p.partido_id || p.id}, cargarPartidos)" class="btn-danger">Borrar</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function editarPartido(id, jornada, locId, visId, ptsL, ptsV, chvL, chvV, estado) {
+      document.getElementById('part-id').value = id;
+      document.getElementById('part-jornada').value = jornada;
+      document.getElementById('part-local').value = locId;
+      document.getElementById('part-visitante').value = visId;
+      document.getElementById('part-pts-loc').value = ptsL;
+      document.getElementById('part-pts-vis').value = ptsV;
+      document.getElementById('part-chv-loc').value = chvL;
+      document.getElementById('part-chv-vis').value = chvV;
+      document.getElementById('part-estado').value = estado;
+    }
+
+    async function guardarPartido(e) {
+      e.preventDefault();
+      const id = document.getElementById('part-id').value;
+      const jornada = parseInt(document.getElementById('part-jornada').value);
+      const equipo_local_id = parseInt(document.getElementById('part-local').value);
+      const equipo_visitante_id = parseInt(document.getElementById('part-visitante').value);
+      const puntos_local = parseInt(document.getElementById('part-pts-loc').value);
+      const puntos_visitante = parseInt(document.getElementById('part-pts-vis').value);
+      const chaves_local = parseInt(document.getElementById('part-chv-loc').value);
+      const chaves_visitante = parseInt(document.getElementById('part-chv-vis').value);
+      const estado = document.getElementById('part-estado').value;
+
+      if (equipo_local_id === equipo_visitante_id) {
+        alert('⚠️ Erro: O equipo local e o visitante non poden ser o mesmo.');
+        return;
+      }
+
+      if (estado === 'finalizado' && puntos_local === puntos_visitante) {
+        alert('⚠️ Erro: Na Chave non se admiten empates ao finalizar un partido.');
+        return;
+      }
+
+      const payload = {
+        jornada, equipo_local_id, equipo_visitante_id,
+        puntos_local, puntos_visitante, chaves_local, chaves_visitante, estado
+      };
+
+      const { error } = id 
+        ? await supabase.from('partidos').update(payload).eq('id', id)
+        : await supabase.from('partidos').insert([payload]);
+
+      if (error) {
+        alert('Error al guardar partido: ' + error.message);
+      } else {
+        resetForm('part');
+        cargarPartidos();
+      }
+    }
+
+    // 5. EVENTOS CRUD
+    async function cargarEventos() {
+      const { data, error } = await supabase.from('eventos').select('*').order('fecha_hora', { ascending: true });
+      if (error) return console.error(error);
+      const tbody = document.querySelector('#tabla-eventos tbody');
+      tbody.innerHTML = (data || []).map(ev => `
+        <tr>
+          <td>${new Date(ev.fecha_hora).toLocaleString()}</td>
+          <td><b>${ev.titulo}</b></td>
+          <td>${ev.lugar || '-'}</td>
+          <td class="action-btns">
+            <button onclick="editarEvento(${ev.id}, '${ev.titulo}', '${ev.fecha_hora}', '${ev.lugar || ''}')">Editar</button>
+            <button onclick="eliminar('eventos', ${ev.id}, cargarEventos)" class="btn-danger">Borrar</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function editarEvento(id, titulo, fecha_hora, lugar) {
+      document.getElementById('eve-id').value = id;
+      document.getElementById('eve-titulo').value = titulo;
+      if (fecha_hora) {
+        const d = new Date(fecha_hora);
+        const isoString = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        document.getElementById('eve-fecha').value = isoString;
+      }
+      document.getElementById('eve-lugar').value = lugar;
+    }
+
+    async function guardarEvento(e) {
+      e.preventDefault();
+      const id = document.getElementById('eve-id').value;
+      const titulo = document.getElementById('eve-titulo').value;
+      const fecha_hora = document.getElementById('eve-fecha').value;
+      const lugar = document.getElementById('eve-lugar').value;
+
+      const payload = { titulo, fecha_hora, lugar };
+      const { error } = id 
+        ? await supabase.from('eventos').update(payload).eq('id', id)
+        : await supabase.from('eventos').insert([payload]);
+
+      if (error) {
+        alert('Error al guardar evento: ' + error.message);
+      } else {
+        resetForm('eve');
+        cargarEventos();
+      }
+    }
+
+    // ELIMINACIÓN GENÉRICA
+    async function eliminar(tabla, id, callback) {
+      if (!id) return;
+      if (confirm(`¿Seguro que desexas eliminar este rexistro de ${tabla}?`)) {
+        const { error } = await supabase.from(tabla).delete().eq('id', id);
+        if (error) {
+          alert('Error al eliminar: ' + error.message);
+        } else {
+          callback();
         }
       }
     }
 
-    cancelarEdicionJugador();
-    cargarJugadores();
-  }
-
-  // --- PARTIDOS ---
-  async function cargarPartidos() {
-    const { data, error } = await db
-      .from('partidos')
-      .select(`
-        id, jornada, goles_local, goles_visitante,
-        equipo_local:equipos!partidos_equipo_local_id_fkey(nombre),
-        equipo_visitante:equipos!partidos_equipo_visitante_id_fkey(nombre)
-      `)
-      .order('jornada');
-
-    if (error) return console.error('Error al cargar partidos:', error);
-
-    const tbody = document.querySelector('#tabla-partidos tbody');
-    tbody.innerHTML = (data || []).map(p => `
-      <tr>
-        <td>Xornada ${p.jornada}</td>
-        <td>${p.equipo_local?.nombre || 'Local'}</td>
-        <td><b>${p.goles_local ?? '-'} - ${p.goles_visitante ?? '-'}</b></td>
-        <td>${p.equipo_visitante?.nombre || 'Visitante'}</td>
-        <td class="action-btns">
-          <button onclick="eliminar('partidos', ${p.id}, cargarPartidos)" class="btn-danger">Borrar</button>
-        </td>
-      </tr>
-    `).join('');
-  }
-
-  async function guardarPartido(e) {
-    e.preventDefault();
-    const jornada = document.getElementById('part-jornada').value;
-    const equipo_local_id = document.getElementById('part-local').value;
-    const equipo_visitante_id = document.getElementById('part-visitante').value;
-    const gLocal = document.getElementById('part-goles-local').value;
-    const gVisitante = document.getElementById('part-goles-visitante').value;
-
-    if (equipo_local_id === equipo_visitante_id) {
-      alert('O equipo local e o visitante non poden ser o mesmo.');
-      return;
-    }
-
-    const { error } = await db.from('partidos').insert([{
-      jornada: parseInt(jornada),
-      equipo_local_id: parseInt(equipo_local_id),
-      equipo_visitante_id: parseInt(equipo_visitante_id),
-      goles_local: gLocal !== '' ? parseInt(gLocal) : null,
-      goles_visitante: gVisitante !== '' ? parseInt(gVisitante) : null
-    }]);
-
-    if (error) alert('Error: ' + error.message);
-    else {
-      e.target.reset();
-      cargarPartidos();
-    }
-  }
-
-  // --- TEMPORADAS ---
-  async function cargarTemporadas() {
-    const { data, error } = await db.from('temporadas').select('*').order('id', { ascending: false });
-    if (error) return console.error(error);
-
-    const tbody = document.querySelector('#tabla-temporadas tbody');
-    tbody.innerHTML = (data || []).map(t => `
-      <tr>
-        <td>${t.id}</td>
-        <td><b>${t.nombre}</b></td>
-        <td>${t.activa ? '🟢 Activa' : '⚪ Inactiva'}</td>
-      </tr>
-    `).join('');
-  }
-
-  async function guardarTemporada(e) {
-    e.preventDefault();
-    const nombre = document.getElementById('temp-nombre').value;
-    const { error } = await db.from('temporadas').insert([{ nombre, activa: true }]);
-    if (error) alert('Error: ' + error.message);
-    else {
-      e.target.reset();
-      cargarTemporadas();
-    }
-  }
-
-  // INICIALIZACIÓN
-  cargarEquipos();
-</script>
-
+    // INICIALIZAR
+    window.addEventListener('DOMContentLoaded', checkAuth);
+  </script>
 </body>
 </html>
-
-   
  
