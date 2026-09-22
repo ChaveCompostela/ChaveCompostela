@@ -269,34 +269,52 @@
       </table>
     </div>
 
-    <!-- 5. EVENTOS -->
-    <div id="panel-eventos" class="panel">
-      <h3>Eventos e Torneos</h3>
-      <form onsubmit="guardarEvento(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
-        <input type="hidden" id="eve-id">
-        <div class="form-group">
-          <label>Título Evento</label>
-          <input type="text" id="eve-titulo" required>
-        </div>
-        <div class="form-group">
-          <label>Data e Hora</label>
-          <input type="datetime-local" id="eve-fecha" required>
-        </div>
-        <div class="form-group">
-          <label>Lugar</label>
-          <input type="text" id="eve-lugar">
-        </div>
-        <div style="grid-column: 1/-1; display: flex; gap: 10px;">
-          <button type="submit">Gardar Evento</button>
-          <button type="button" class="btn-secondary" onclick="resetForm('eve')">Cancelar / Limpar</button>
-        </div>
-      </form>
-      <table id="tabla-eventos">
-        <thead><tr><th>Data</th><th>Título</th><th>Lugar</th><th>Accións</th></tr></thead>
-        <tbody></tbody>
-      </table>
+<!-- 5. EVENTOS -->
+<div id="panel-eventos" class="panel">
+  <h3>Eventos e Torneos</h3>
+  <form onsubmit="guardarEvento(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+    <input type="hidden" id="eve-id">
+    
+    <div class="form-group">
+      <label for="eve-titulo">Título Evento</label>
+      <input type="text" id="eve-titulo" required>
     </div>
-  </div>
+    
+    <div class="form-group">
+      <label for="eve-fecha">Data e Hora</label>
+      <input type="datetime-local" id="eve-fecha" required>
+    </div>
+    
+    <div class="form-group">
+      <label for="eve-lugar">Ubicación / Lugar</label>
+      <input type="text" id="eve-lugar" placeholder="Ex: Campo de San Lázaro">
+    </div>
+
+    <!-- NUEVO CAMPO: COMENTARIOS -->
+    <div class="form-group" style="grid-column: 1 / -1;">
+      <label for="eve-comentarios">Comentarios / Observacións</label>
+      <textarea id="eve-comentarios" rows="2" placeholder="Información adicional, notas do torneo, etc." style="width: 100%; padding: 8px; box-sizing: border-box;"></textarea>
+    </div>
+
+    <div style="grid-column: 1/-1; display: flex; gap: 10px;">
+      <button type="submit">Gardar Evento</button>
+      <button type="button" class="btn-secondary" onclick="resetForm('eve')">Cancelar / Limpar</button>
+    </div>
+  </form>
+
+  <table id="tabla-eventos" style="margin-top: 20px;">
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Título</th>
+        <th>Lugar</th>
+        <th>Comentarios</th>
+        <th>Accións</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
 <!-- SECCIÓN DE ACTA DE JUGADORES (se muestra cuando hay equipos seleccionados) -->
 <div id="seccion-jugadores" style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 15px; display: none;">
   <h3>Anotación individual de Chaves</h3>
@@ -675,53 +693,76 @@ async function guardarPartido(e) {
   cargarPartidos();
 }
     // 5. EVENTOS CRUD
-    async function cargarEventos() {
-      const { data, error } = await supabaseClient.from('eventos').select('*').order('fecha_hora', { ascending: true });
-      if (error) return console.error(error);
-      const tbody = document.querySelector('#tabla-eventos tbody');
-      tbody.innerHTML = (data || []).map(ev => `
+   // 1. Cargar Eventos en la Tabla
+async function cargarEventos() {
+  const { data, error } = await supabaseClient
+    .from('eventos')
+    .select('*')
+    .order('data', { ascending: true });
+
+  if (error) return console.error('Error cargando eventos:', error);
+
+  const tbody = document.querySelector('#tabla-eventos tbody');
+  if (tbody) {
+    tbody.innerHTML = (data || []).map(ev => {
+      // Escapar texto para evitar fallos de sintaxis en el HTML inline
+      const tituloEsc = (ev.titulo || '').replace(/'/g, "\\'");
+      const ubicacionEsc = (ev.ubicacion || '').replace(/'/g, "\\'");
+      const comentariosEsc = (ev.comentarios || '').replace(/'/g, "\\'");
+
+      return `
         <tr>
-          <td>${new Date(ev.fecha_hora).toLocaleString()}</td>
           <td><b>${ev.titulo}</b></td>
-          <td>${ev.lugar || '-'}</td>
+          <td>${ev.data ? new Date(ev.data).toLocaleString() : '-'}</td>
+          <td>${ev.ubicacion || '-'}</td>
+          <td>${ev.comentarios || '-'}</td>
           <td class="action-btns">
-            <button onclick="editarEvento(${ev.id}, '${ev.titulo}', '${ev.fecha_hora}', '${ev.lugar || ''}')">Editar</button>
+            <button onclick="editarEvento(${ev.id}, '${tituloEsc}', '${ev.data || ''}', '${ubicacionEsc}', '${comentariosEsc}')">Editar</button>
             <button onclick="eliminar('eventos', ${ev.id}, cargarEventos)" class="btn-danger">Borrar</button>
           </td>
         </tr>
-      `).join('');
-    }
+      `;
+    }).join('');
+  }
+}
 
-    function editarEvento(id, titulo, fecha_hora, lugar) {
-      document.getElementById('eve-id').value = id;
-      document.getElementById('eve-titulo').value = titulo;
-      if (fecha_hora) {
-        const d = new Date(fecha_hora);
-        const isoString = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-        document.getElementById('eve-fecha').value = isoString;
-      }
-      document.getElementById('eve-lugar').value = lugar;
-    }
+// 2. Cargar datos en el formulario para Editar
+function editarEvento(id, titulo, data, ubicacion, comentarios) {
+  document.getElementById('ev-id').value = id;
+  document.getElementById('ev-titulo').value = titulo;
+  document.getElementById('ev-data').value = data ? data.slice(0, 16) : ''; // Formato para datetime-local
+  document.getElementById('ev-ubicacion').value = ubicacion || '';
+  document.getElementById('ev-comentarios').value = comentarios || '';
+}
 
-    async function guardarEvento(e) {
-      e.preventDefault();
-      const id = document.getElementById('eve-id').value;
-      const titulo = document.getElementById('eve-titulo').value;
-      const fecha_hora = document.getElementById('eve-fecha').value;
-      const lugar = document.getElementById('eve-lugar').value;
+// 3. Guardar o Actualizar Evento
+async function guardarEvento(e) {
+  e.preventDefault();
 
-      const payload = { titulo, fecha_hora, lugar };
-      const { error } = id 
-        ? await supabaseClient.from('eventos').update(payload).eq('id', id)
-        : await supabaseClient.from('eventos').insert([payload]);
+  const id = document.getElementById('ev-id').value;
+  const titulo = document.getElementById('ev-titulo').value;
+  const data = document.getElementById('ev-data').value;
+  const ubicacion = document.getElementById('ev-ubicacion').value;
+  const comentarios = document.getElementById('ev-comentarios').value;
 
-      if (error) {
-        alert('Error al guardar evento: ' + error.message);
-      } else {
-        resetForm('eve');
-        cargarEventos();
-      }
-    }
+  const payload = {
+    titulo,
+    data,
+    ubicacion,
+    comentarios
+  };
+
+  const { error } = id
+    ? await supabaseClient.from('eventos').update(payload).eq('id', id)
+    : await supabaseClient.from('eventos').insert([payload]);
+
+  if (error) {
+    alert('Error al guardar evento: ' + error.message);
+  } else {
+    resetForm('ev');
+    cargarEventos();
+  }
+}
 
     // ELIMINACIÓN GENÉRICA
 async function eliminar(tabla, id, callback) {
