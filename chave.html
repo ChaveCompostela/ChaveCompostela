@@ -124,7 +124,13 @@
       <h1>🛡️ Xestión Chave Compostela</h1>
       <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
     </header>
+    <!-- MAPS -->
 
+<div style="display: flex; gap: 8px;">
+  <input type="text" id="eve-lugar" placeholder="Escribe un lugar ou pega un enlace">
+  <button type="button" onclick="abrirGoogleMaps()">🗺️ Abrir Maps</button>
+</div>
+    
     <!-- NAVEGACIÓN -->
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab(event, 'temporadas')">Temporadas</button>
@@ -692,7 +698,20 @@ async function guardarPartido(e) {
   document.getElementById('seccion-jugadores').style.display = 'none';
   cargarPartidos();
 }
+
+// 5. EVENTOS CRUD
 // 1. Cargar eventos ordenando por 'fecha_hora'
+
+// Función auxiliar para renderizar el lugar
+function formatearLugar(lugar) {
+  if (!lugar) return '-';
+  // Si el valor guardado es una URL de Maps
+  if (lugar.startsWith('http://') || lugar.startsWith('https://')) {
+    return `<a href="${lugar}" target="_blank" rel="noopener" style="color: #0066cc; text-decoration: underline;">📍 Ver no mapa</a>`;
+  }
+  return lugar;
+}
+    
 async function cargarEventos() {
   const { data, error } = await supabaseClient
     .from('eventos')
@@ -703,6 +722,10 @@ async function cargarEventos() {
     console.error('Error cargando eventos:', error.message);
     return;
   }
+
+
+
+ <td>${formatearLugar(ev.lugar)}</td>
 
   const tbody = document.querySelector('#tabla-eventos tbody');
   if (tbody) {
@@ -918,6 +941,20 @@ async function cargarListaJugadores(equipoId, contenedorId, partidoId) {
 
   contenedor.innerHTML = html;
 }
+
+    function abrirGoogleMaps() {
+  const lugarActual = document.getElementById('eve-lugar').value.trim();
+  
+  if (lugarActual) {
+    // Si ya escribió algo (ej. "Plaza Mayor, Ourense"), busca ese lugar en Maps
+    const query = encodeURIComponent(lugarActual);
+    window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
+  } else {
+    // Si está vacío, abre Google Maps directamente
+    window.open('https://www.google.com/maps', '_blank');
+  }
+}
+    
   </script>
 </body>
 </html>
