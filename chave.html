@@ -305,7 +305,29 @@
       </table>
     </div>
   </div>
+<!-- SECCIÓN DE ACTA DE JUGADORES (se muestra cuando hay equipos seleccionados) -->
+<div id="seccion-jugadores" style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 15px; display: none;">
+  <h3>Anotación individual de Chaves</h3>
+  
+  <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+    <!-- Columna Local -->
+    <div style="flex: 1; min-width: 250px;">
+      <h4 id="titulo-jugadores-local" style="color: #2c3e50;">Jugadores Local</h4>
+      <div id="contenedor-jugadores-local">
+        <!-- Se rellena dinámicamente -->
+      </div>
+    </div>
 
+    <!-- Columna Visitante -->
+    <div style="flex: 1; min-width: 250px;">
+      <h4 id="titulo-jugadores-visita" style="color: #2c3e50;">Jugadores Visitante</h4>
+      <div id="contenedor-jugadores-visita">
+        <!-- Se rellena dinámicamente -->
+      </div>
+    </div>
+  </div>
+</div>
+  
   <script>
     // CONFIGURACIÓN SUPABASE
     const SUPABASE_URL = 'https://tlpkxrwwdosrzqcqwybq.supabase.co/';
@@ -595,71 +617,70 @@ async function guardarPartido(e) {
 
   const id = document.getElementById('part-id')?.value;
   const jornada = parseInt(document.getElementById('part-jornada')?.value);
-  
-  const valLocal = document.getElementById('part-local')?.value;
-  const valVisitante = document.getElementById('part-visitante')?.value;
+  const equipo_local_id = parseInt(document.getElementById('part-local')?.value);
+  const equipo_visitante_id = parseInt(document.getElementById('part-visitante')?.value);
 
-  console.log("Valores leídos del desplegable -> Local:", valLocal, "Visitante:", valVisitante);
-
-  // 1. Validar selección vacía
-  if (!valLocal || !valVisitante) {
-    alert("⚠️ Debes seleccionar un equipo local y un visitante.");
+  if (!equipo_local_id || !equipo_visitante_id) {
+    alert("⚠️ Debes seleccionar equipo local y visitante.");
     return;
   }
 
-  const equipo_local_id = parseInt(valLocal);
-  const equipo_visitante_id = parseInt(valVisitante);
-
-  // 2. DIAGNÓSTICO: Comprobar si el equipo local realmente existe en Supabase
-  const { data: equipoLocalExiste, error: errLocal } = await supabaseClient
-    .from('equipos')
-    .select('id, nombre')
-    .eq('id', equipo_local_id)
-    .maybeSingle();
-
-  if (!equipoLocalExiste) {
-    alert(`❌ ATENCIÓN:\nIntentas guardar el equipo local con ID = ${equipo_local_id}.\n\nEste ID NO EXISTE actualmente en tu tabla "equipos" de Supabase.`);
-    console.error("ID local no encontrado en la tabla equipos:", equipo_local_id);
-    return;
-  }
-
-  // 3. DIAGNÓSTICO: Comprobar equipo visitante
-  const { data: equipoVisExiste } = await supabaseClient
-    .from('equipos')
-    .select('id, nombre')
-    .eq('id', equipo_visitante_id)
-    .maybeSingle();
-
-  if (!equipoVisExiste) {
-    alert(`❌ ATENCIÓN:\nIntentas guardar el equipo visitante con ID = ${equipo_visitante_id}.\n\nEste ID NO EXISTE en tu tabla "equipos" de Supabase.`);
-    return;
-  }
-
-  const payload = {
+  // 1. Datos básicos del partido
+  const payloadPartido = {
     jornada,
     equipo_local_id,
     equipo_visitante_id,
     puntos_local: parseInt(document.getElementById('part-pts-loc')?.value) || 0,
     puntos_visitante: parseInt(document.getElementById('part-pts-vis')?.value) || 0,
-    chaves_local: parseInt(document.getElementById('part-chv-loc')?.value) || 0,
-    chaves_visitante: parseInt(document.getElementById('part-chv-vis')?.value) || 0,
-    estado: document.getElementById('part-estado')?.value
+    estado: document.getElementById('part-estado')?.value || 'finalizado'
   };
 
-  console.log("Payload que se enviará a Supabase:", payload);
+  // 2. Insertar o Actualizar en 'partidos'
+  let partidoIdGuardado = id;
 
-  const { error } = id 
-    ? await supabaseClient.from('partidos').update(payload).eq('id', id)
-    : await supabaseClient.from('partidos').insert([payload]);
-
-  if (error) {
-    console.error("Error Supabase:", error);
-    alert('Error al guardar partido: ' + error.message);
+  if (id) {
+    const { error } = await supabaseClient.from('partidos').update(payloadPartido).eq('id', id);
+    if (error) { alert("Error al actualizar partido: " + error.message); return; }
   } else {
-    alert('✅ Partido guardado correctamente');
-    resetForm('part');
-    cargarPartidos();
+    const { data, error } = await supabaseClient.from('partidos').insert([payloadPartido]).select('id').single();
+    if (error) { alert("Error al crear partido: " + error.message); return; }
+    partidoIdGuardado = data.id;
   }
+
+  // 3. Recopilar chaves de los jugadores desde los inputs cargados
+  const inputsJugadores = document.querySelectorAll('.input-chaves-jugador');
+  const registrosChaves = [];
+
+  inputsJugadores.forEach(input => {
+    const jugadorId = parseInt(input.getAttribute('data-jugador-id'));
+    const chaves = parseInt(input.value) || 0;
+
+    registrosChaves.push({
+      partido_id: partidoIdGuardado,
+      jugador_id: jugadorId,
+      chaves: chaves
+    });
+  });
+
+  // 4. Guardar chaves individuales en 'partido_jugadores'
+  if (registrosChaves.length > 0) {
+    const { error: errPj } = await supabaseClient
+      .from('partido_jugadores')
+      .upsert(registrosChaves, { onConflict: 'partido_id, jugador_id' });
+
+    if (errPj) {
+      console.error("Error al guardar chaves de jugadores:", errPj);
+      alert("El partido se guardó, pero hubo un error al guardar las chaves individuales.");
+      return;
+    }
+  }
+
+  alert("✅ Partido y chaves de jugadores guardados correctamente");
+  
+  // Limpiar formulario y recargar
+  resetForm('part');
+  document.getElementById('seccion-jugadores').style.display = 'none';
+  cargarPartidos();
 }
     // 5. EVENTOS CRUD
     async function cargarEventos() {
@@ -767,6 +788,86 @@ async function guardarChavesPartido(partidoId, listaPuntuacionesJugadores) {
 }
     // INICIALIZAR
     window.addEventListener('DOMContentLoaded', checkAuth);
+
+    // Detectar cuando cambia la selección de equipos en el formulario
+document.getElementById('part-local')?.addEventListener('change', actualizarVistaJugadores);
+document.getElementById('part-visitante')?.addEventListener('change', actualizarVistaJugadores);
+
+async function actualizarVistaJugadores() {
+  const localId = document.getElementById('part-local').value;
+  const visitanteId = document.getElementById('part-visitante').value;
+  const partidoId = document.getElementById('part-id')?.value; // Si estamos editando
+
+  const secJugadores = document.getElementById('seccion-jugadores');
+
+  if (!localId || !visitanteId) {
+    secJugadores.style.display = 'none';
+    return;
+  }
+
+  secJugadores.style.display = 'block';
+
+  // Cargar jugadores de ambos equipos en paralelo
+  await Promise.all([
+    cargarListaJugadores(localId, 'contenedor-jugadores-local', partidoId),
+    cargarListaJugadores(visitanteId, 'contenedor-jugadores-visita', partidoId)
+  ]);
+}
+
+// Carga e inserta las filas de inputs por jugador
+async function cargarListaJugadores(equipoId, contenedorId, partidoId) {
+  const contenedor = document.getElementById(contenedorId);
+  contenedor.innerHTML = '<p>Cargando jugadores...</p>';
+
+  // 1. Obtener los jugadores del equipo
+  const { data: jugadores, error: errJ } = await supabaseClient
+    .from('jugadores')
+    .select('id, nombre')
+    .eq('equipo_id', equipoId)
+    .order('nombre');
+
+  if (errJ || !jugadores || jugadores.length === 0) {
+    contenedor.innerHTML = '<p style="color:gray;">No hay jugadores registrados en este equipo.</p>';
+    return;
+  }
+
+  // 2. Si estamos editando un partido, obtener las chaves previas guardadas
+  let chavesGuardadas = {};
+  if (partidoId) {
+    const { data: pjData } = await supabaseClient
+      .from('partido_jugadores')
+      .select('jugador_id, chaves')
+      .eq('partido_id', partidoId);
+
+    if (pjData) {
+      pjData.forEach(item => {
+        chavesGuardadas[item.jugador_id] = item.chaves;
+      });
+    }
+  }
+
+  // 3. Generar el HTML de los inputs
+  let html = '';
+  jugadores.forEach(j => {
+    const valorChaves = chavesGuardadas[j.id] !== undefined ? chavesGuardadas[j.id] : 0;
+    html += `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <label for="jugador-chaves-${j.id}">${j.nombre}</label>
+        <input 
+          type="number" 
+          class="input-chaves-jugador" 
+          data-jugador-id="${j.id}" 
+          id="jugador-chaves-${j.id}" 
+          value="${valorChaves}" 
+          min="0" 
+          style="width: 70px; text-align: center;"
+        />
+      </div>
+    `;
+  });
+
+  contenedor.innerHTML = html;
+}
   </script>
 </body>
 </html>
