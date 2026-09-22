@@ -6,6 +6,11 @@
   <title>Chave Compostela - Panel Admin</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- CSS e JS de Leaflet (Mapa Interactivo) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
   <style>
     :root {
       --primary: #8B0000;
@@ -286,13 +291,16 @@
       <input type="datetime-local" id="eve-fecha" required>
     </div>
     
-   <div class="form-group">
+<!-- CAMPO LUGAR CON BOTÓN PARA ABRIR VENTANA DE MAPA -->
+<div class="form-group">
   <label for="eve-lugar">Lugar / Ubicación</label>
   <div style="display: flex; gap: 8px;">
-    <input type="text" id="eve-lugar" placeholder="Ex: Campo de San Lázaro ou enlace de Maps">
-    <button type="button" class="btn-secondary" onclick="abrirGoogleMaps()">🗺️ Maps</button>
+    <input type="text" id="eve-lugar" placeholder="Escribe un lugar ou selecciona no mapa">
+    <button type="button" class="btn-secondary" onclick="abrirModalMapa()">🗺️ Seleccionar no mapa</button>
   </div>
 </div>
+
+
 
     <div class="form-group" style="grid-column: 1 / -1;">
       <label for="eve-comentarios">Comentarios / Observacións</label>
@@ -963,8 +971,99 @@ async function cargarListaJugadores(equipoId, contenedorId, partidoId) {
     window.open('https://www.google.com/maps', '_blank');
   }
 }
+
+
+    let mapaPicker = null;
+let marcadorPicker = null;
+let coordsSeleccionadas = null;
+
+// Ubicación inicial por defecto (Santiago de Compostela)
+const LAT_DEFECTO = 42.8805;
+const LNG_DEFECTO = -8.5457;
+
+function abrirModalMapa() {
+  const modal = document.getElementById('modal-mapa');
+  if (modal) modal.style.display = 'flex';
+
+  // Inicializar el mapa solo la primera vez que se abre
+  if (!mapaPicker) {
+    mapaPicker = L.map('mapa-picker').setView([LAT_DEFECTO, LNG_DEFECTO], 13);
+
+    // Cargar capas gratuitas de OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(mapaPicker);
+
+    // Evento de clic en el mapa para mover o crear el marcador
+    mapaPicker.on('click', function(e) {
+      const lat = e.latlng.lat.toFixed(6);
+      const lng = e.latlng.lng.toFixed(6);
+      coordsSeleccionadas = { lat, lng };
+
+      if (marcadorPicker) {
+        marcadorPicker.setLatLng(e.latlng);
+      } else {
+        marcadorPicker = L.marker(e.latlng).addTo(mapaPicker);
+      }
+
+      document.getElementById('coords-texto').innerHTML = `<b>Ubicación seleccionada:</b> ${lat}, ${lng}`;
+    });
+  }
+
+  // Refrescar el renderizado del mapa para evitar cuadros grises al abrir en modal
+  setTimeout(() => {
+    mapaPicker.invalidateSize();
+  }, 200);
+}
+
+function cerrarModalMapa() {
+  const modal = document.getElementById('modal-mapa');
+  if (modal) modal.style.display = 'none';
+}
+
+function confirmarUbicacionMapa() {
+  if (!coordsSeleccionadas) {
+    alert('⚠️ Por favor, fai clic primeiro nun punto do mapa.');
+    return;
+  }
+
+  // Genera la URL interactiva de Google Maps con las coordenadas seleccionadas
+  const mapsUrl = `https://www.google.com/maps?q=${coordsSeleccionadas.lat},${coordsSeleccionadas.lng}`;
+  
+  const elLugar = document.getElementById('eve-lugar');
+  if (elLugar) {
+    elLugar.value = mapsUrl;
+  }
+
+  cerrarModalMapa();
+}
     
   </script>
+
+    <!-- VENTANA MODAL FLOTANTE DO MAPA -->
+<div id="modal-mapa" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center;">
+  <div style="background: white; border-radius: 12px; width: 90%; max-width: 650px; padding: 20px; box-shadow: 0 5px 25px rgba(0,0,0,0.3); display: flex; flex-direction: column; gap: 15px;">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+      <h3 style="margin: 0;">📍 Fai clic no mapa para marcar a ubicación</h3>
+      <button type="button" onclick="cerrarModalMapa()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #666;">✖</button>
+    </div>
+
+    <!-- Contenedor do Mapa -->
+    <div id="mapa-picker" style="height: 380px; width: 100%; border-radius: 8px; border: 1px solid #ccc;"></div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; border-top: 1px solid #eee; padding-top: 10px;">
+      <span id="coords-texto" style="font-size: 0.9em; color: #555;">Fai clic no mapa para seleccionar coordenadas...</span>
+      <div style="display: flex; gap: 10px;">
+        <button type="button" class="btn-secondary" onclick="cerrarModalMapa()">Cancelar</button>
+        <button type="button" onclick="confirmarUbicacionMapa()" style="background-color: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">✅ Usar esta ubicación</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+    
 </body>
 </html>
 
