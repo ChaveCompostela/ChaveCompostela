@@ -189,7 +189,7 @@
 <!-- 3. JUGADORES -->
 <div id="panel-jugadores" class="panel">
   <h3>Xestión de Xogadores e Fichaxes</h3>
-  <form onsubmit="guardarJugador(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+  <form id="form-jugador" onsubmit="guardarJugador(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
     <input type="hidden" id="jug-id">
     <div class="form-group">
       <label>Nome</label>
@@ -209,12 +209,13 @@
         <option value="">-- Sen equipo (Libre) --</option>
       </select>
     </div>
-    <div style="grid-column: 1/-1;">
-      <button type="submit">Gardar Xogador</button>
+    <div style="grid-column: 1/-1; display: flex; gap: 10px;">
+      <button type="submit" id="btn-jugador">Gardar Xogador</button>
+      <button type="button" id="btn-cancelar-jug" onclick="cancelarEdicionJugador()" style="display: none; background-color: #6c757d;">Cancelar</button>
     </div>
   </form>
 
-  <table id="tabla-jugadores">
+  <table id="tabla-jugadores" style="margin-top: 20px;">
     <thead>
       <tr>
         <th>ID</th>
@@ -425,7 +426,8 @@
     cargarEquipos();
   }
 
- // Cargar jugadores con su equipo actual
+  // 3. JUGADORES CRUD
+// Cargar jugadores con botón de Editar
 async function cargarJugadores() {
   const { data, error } = await db
     .from('jugadores')
@@ -448,7 +450,14 @@ async function cargarJugadores() {
   const tbody = document.querySelector('#tabla-jugadores tbody');
   tbody.innerHTML = (data || []).map(j => {
     const jt = j.jugador_temporada?.[0];
-    const equipoNombre = jt?.equipo_temporada?.equipos?.nombre || '<span style="color: var(--muted)">Sin equipo</span>';
+    const equipoObj = jt?.equipo_temporada?.equipos;
+    const equipoNombre = equipoObj?.nombre || '<span style="color: var(--muted)">Sin equipo</span>';
+    const equipoId = equipoObj?.id || '';
+
+    // Escapar comillas simples para evitar fallos en el HTML onclick
+    const nomEsc = (j.nombre || '').replace(/'/g, "\\'");
+    const apeEsc = (j.apellidos || '').replace(/'/g, "\\'");
+    const aliEsc = (j.alias || '').replace(/'/g, "\\'");
 
     return `
       <tr>
@@ -457,6 +466,7 @@ async function cargarJugadores() {
         <td>${j.alias || '-'}</td>
         <td>${equipoNombre}</td>
         <td class="action-btns">
+          <button onclick="editarJugador(${j.id}, '${nomEsc}', '${apeEsc}', '${aliEsc}', '${equipoId}')">Editar</button>
           <button onclick="eliminar('jugadores', ${j.id}, cargarJugadores)" class="btn-danger">Borrar</button>
         </td>
       </tr>
@@ -464,25 +474,118 @@ async function cargarJugadores() {
   }).join('');
 }
 
-// Guardar jugador y asociar directamente a su equipo
+// Cargar datos en el formulario para editar
+function editarJugador(id, nombre, apellidos, alias, equipoId) {
+  document.getElementById('jug-id').value = id;
+  document.getElementById('jug-nombre').value = nombre;
+  document.getElementById('jug-apellidos').value = apellidos;
+  document.getElementById('jug-alias').value = alias;
+  document.getElementById('jug-equipo').value = equipoId;
+
+  document.getElementById('btn-jugador').innerText = 'Actualizar Xogador';
+  document.getElementById('btn-cancelar-jug').style.display = 'inline-block';
+  document.getElementById('form-jugador').scrollIntoView({ behavior: 'smooth' });
+}
+
+// Limpiar formulario tras editar o cancelar
+function cancelarEdicionJugador() {
+  document.getElementById('jug-id').value = '';
+  document.getElementById('form-jugador').reset();
+  document.getElementById('btn-jugador').innerText = 'Gardar Xogador';
+  document.getElementById('btn-cancelar-jug').style.display = 'none';
+}
+
+// Guardar o Actualizar jugador
 async function guardarJugador(e) {
   e.preventDefault();
+  const id = document.getElementById('jug-id').value;
   const nombre = document.getElementById('jug-nombre').value;
   const apellidos = document.getElementById('jug-apellidos').value;
   const alias = document.getElementById('jug-alias').value;
   const equipo_id = document.getElementById('jug-equipo').value;
 
-  // 1. Crear ficha del jugador
-  const { data: jugData, error: jugError } = await db
-    .from('jugadores')
-    .insert([{ nombre, apellidos, alias }])
-    .select();
+  let jugadorId = id;
 
-  if (jugError) {
-    alert('Error al guardar jugador: ' + jugError.message);
-    return;
+  if (id) {
+    // 1A. Actualizar datos básicos del jugador existente
+    const { error: updateError } = await db
+      .from('jugadores')
+      .update({ nombre, apellidos, alias })
+      .eq('id', id);
+
+    if (updateError) {
+      alert('Error al actualizar jugador: ' + updateError.message);
+      return;
+    }
+  } else {
+    // 1B. Insertar nuevo jugador
+    const { data: jugData, error: jugError } = await db
+      .from('jugadores')
+      .insert([{ nombre, apellidos, alias }])
+      .select();
+
+    if (jugError) {
+      alert('Error al guardar jugador: ' + jugError.message);
+      return;
+    }
+    jugadorId = jugData[0].id;
   }
 
+  // 2. Gestionar la asignación/cambio de equipo en la temporada activa
+  let { data: tempActiva } = await db.from('temporadas').select('id').eq('activa', true).limit(1);
+  let tempId = tempActiva?.[0]?.id;
+
+  if (!tempId) {
+    const { data: ultTemp } = await db.from('temporadas').select('id').order('id', { ascending: false }).limit(1);
+    tempId = ultTemp?.[0]?.id;
+  }
+
+  if (tempId) {
+    // Obtener inscripciones de equipos en esta temporada
+    const { data: eqTemps } = await db.from('equipo_temporada').select('id, equipo_id').eq('temporada_id', tempId);
+    const eqTempIds = (eqTemps || []).map(et => et.id);
+
+    // Buscar si el jugador ya tiene ficha en esta temporada
+    let { data: jtExistente } = await db
+      .from('jugador_temporada')
+      .select('id')
+      .eq('jugador_id', jugadorId)
+      .in('equipo_temporada_id', eqTempIds.length > 0 ? eqTempIds : [0])
+      .maybeSingle();
+
+    if (equipo_id) {
+      // Buscar o crear la inscripción del equipo seleccionado
+      let eqTemp = (eqTemps || []).find(et => et.equipo_id == equipo_id);
+      if (!eqTemp) {
+        const { data: novoEqTemp } = await db.from('equipo_temporada')
+          .insert([{ equipo_id, temporada_id: tempId }])
+          .select();
+        eqTemp = novoEqTemp?.[0];
+      }
+
+      if (eqTemp) {
+        if (jtExistente) {
+          // Cambiar de equipo
+          await db.from('jugador_temporada')
+            .update({ equipo_temporada_id: eqTemp.id })
+            .eq('id', jtExistente.id);
+        } else {
+          // Asignar equipo por primera vez
+          await db.from('jugador_temporada')
+            .insert([{ jugador_id: jugadorId, equipo_temporada_id: eqTemp.id }]);
+        }
+      }
+    } else {
+      // Si se deja sin equipo y tenía una asignación activa, la eliminamos
+      if (jtExistente) {
+        await db.from('jugador_temporada').delete().eq('id', jtExistente.id);
+      }
+    }
+  }
+
+  cancelarEdicionJugador();
+  cargarJugadores();
+}
   const jugadorId = jugData[0].id;
 
   // 2. Vincular jugador con el equipo si fue seleccionado
