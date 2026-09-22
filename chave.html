@@ -692,13 +692,12 @@ async function guardarPartido(e) {
   document.getElementById('seccion-jugadores').style.display = 'none';
   cargarPartidos();
 }
-// 1. Cargar la tabla de Eventos
+// 1. Cargar eventos ordenando por 'fecha_hora'
 async function cargarEventos() {
-  // Ordenamos explícitamente por 'fecha'
   const { data, error } = await supabaseClient
     .from('eventos')
     .select('*')
-    .order('fecha', { ascending: true });
+    .order('fecha_hora', { ascending: true });
 
   if (error) {
     console.error('Error cargando eventos:', error.message);
@@ -711,7 +710,7 @@ async function cargarEventos() {
       const tituloEsc = (ev.titulo || '').replace(/'/g, "\\'");
       const lugarEsc = (ev.lugar || '').replace(/'/g, "\\'");
       const comentariosEsc = (ev.comentarios || '').replace(/'/g, "\\'");
-      const fechaVal = ev.fecha || '';
+      const fechaVal = ev.fecha_hora || '';
 
       return `
         <tr>
@@ -729,8 +728,8 @@ async function cargarEventos() {
   }
 }
 
-// 2. Cargar evento en el formulario para editar
-function editarEvento(id, titulo, fecha, lugar, comentarios) {
+// 2. Cargar datos en el formulario para editar
+function editarEvento(id, titulo, fechaHora, lugar, comentarios) {
   const elId = document.getElementById('eve-id');
   const elTitulo = document.getElementById('eve-titulo');
   const elFecha = document.getElementById('eve-fecha');
@@ -739,12 +738,12 @@ function editarEvento(id, titulo, fecha, lugar, comentarios) {
 
   if (elId) elId.value = id;
   if (elTitulo) elTitulo.value = titulo;
-  if (elFecha) elFecha.value = fecha ? fecha.slice(0, 16) : '';
+  if (elFecha) elFecha.value = fechaHora ? fechaHora.slice(0, 16) : '';
   if (elLugar) elLugar.value = lugar || '';
   if (elComentarios) elComentarios.value = comentarios || '';
 }
 
-// 3. Guardar o actualizar Evento
+// 3. Guardar evento enviando 'fecha_hora'
 async function guardarEvento(e) {
   e.preventDefault();
 
@@ -759,12 +758,12 @@ async function guardarEvento(e) {
     return;
   }
 
-  // Convertir la fecha local a un objeto Date e ISO string válido para Supabase
+  // Convertir fecha a formato ISO completo para PostgreSQL timestamptz
   const fechaISO = new Date(fechaInput).toISOString();
 
   const payload = {
     titulo,
-    fecha: fechaISO,
+    fecha_hora: fechaISO, // Nombre exacto de la columna en Supabase
     lugar,
     comentarios
   };
@@ -774,8 +773,8 @@ async function guardarEvento(e) {
     : await supabaseClient.from('eventos').insert([payload]);
 
   if (error) {
-    console.error('Error detallado de Supabase:', error);
-    alert(`Error ao gardar evento: ${error.message} (${error.details || ''})`);
+    console.error('Error Supabase:', error);
+    alert(`Error ao gardar evento: ${error.message}`);
   } else {
     alert('✅ Evento gardado correctamente');
     resetForm('eve');
