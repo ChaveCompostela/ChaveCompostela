@@ -417,35 +417,62 @@
     }
 
     // 2. EQUIPOS CRUD
-    async function cargarEquipos() {
-      const { data, error } = await supabaseClient.from('equipos').select('*').order('nombre');
-      if (error) return console.error(error);
-      const tbody = document.querySelector('#tabla-equipos tbody');
-      tbody.innerHTML = (data || []).map(eq => `
+async function cargarEquipos() {
+  const { data, error } = await supabaseClient
+    .from('equipos')
+    .select('*')
+    .order('nombre');
+
+  if (error) {
+    console.error('Error al cargar equipos:', error.message);
+    return;
+  }
+
+  const equipos = data || [];
+
+  // 1. Rellenar la tabla de equipos (protegido contra 'null' si no existe en la vista)
+  const tbody = document.querySelector('#tabla-equipos tbody');
+  if (tbody) {
+    tbody.innerHTML = equipos.map(eq => {
+      // Escapar comillas simples para evitar errores en las funciones onclick
+      const nombreEscapado = (eq.nombre || '').replace(/'/g, "\\'");
+      const localidadEscapada = (eq.localidad || '').replace(/'/g, "\\'");
+
+      return `
         <tr>
           <td>${eq.id}</td>
           <td><b>${eq.nombre}</b></td>
           <td>${eq.localidad || '-'}</td>
           <td class="action-btns">
-            <button onclick="editarEquipo(${eq.id}, '${eq.nombre}', '${eq.localidad || ''}')">Editar</button>
+            <button onclick="editarEquipo(${eq.id}, '${nombreEscapado}', '${localidadEscapada}')">Editar</button>
             <button onclick="eliminar('equipos', ${eq.id}, cargarEquipos)" class="btn-danger">Borrar</button>
           </td>
         </tr>
-      `).join('');
+      `;
+    }).join('');
+  }
 
-      // Rellenar desplegables de Partidos
-      const selectsPartidos = [document.getElementById('part-local'), document.getElementById('part-visitante')];
-      selectsPartidos.forEach(s => {
-        if(s) s.innerHTML = (data || []).map(eq => `<option value="${eq.id}">${eq.nombre}</option>`).join('');
-      });
+  // 2. Generar el HTML de las opciones una sola vez para reutilizarlo
+  const opcionesEquipos = equipos.map(eq => `<option value="${eq.id}">${eq.nombre}</option>`).join('');
 
-      // Rellenar desplegable de Jugadores
-      const selectJugEquipo = document.getElementById('jug-equipo');
-      if (selectJugEquipo) {
-        selectJugEquipo.innerHTML = '<option value="">-- Sen Equipo (Libre) --</option>' + 
-          (data || []).map(eq => `<option value="${eq.id}">${eq.nombre}</option>`).join('');
-      }
+  // 3. Rellenar desplegables de Partidos (Local y Visitante) con opción por defecto
+  const selectsPartidos = [
+    document.getElementById('part-local'),
+    document.getElementById('part-visitante')
+  ];
+
+  selectsPartidos.forEach(s => {
+    if (s) {
+      s.innerHTML = '<option value="">-- Selecciona Equipo --</option>' + opcionesEquipos;
     }
+  });
+
+  // 4. Rellenar desplegable de Jugadores
+  const selectJugEquipo = document.getElementById('jug-equipo');
+  if (selectJugEquipo) {
+    selectJugEquipo.innerHTML = '<option value="">-- Sen Equipo (Libre) --</option>' + opcionesEquipos;
+  }
+}
 
     function editarEquipo(id, nombre, localidad) {
       document.getElementById('eq-id').value = id;
@@ -563,44 +590,74 @@
       document.getElementById('part-estado').value = estado;
     }
 
-    async function guardarPartido(e) {
-      e.preventDefault();
-      const id = document.getElementById('part-id').value;
-      const jornada = parseInt(document.getElementById('part-jornada').value);
-      const equipo_local_id = parseInt(document.getElementById('part-local').value);
-      const equipo_visitante_id = parseInt(document.getElementById('part-visitante').value);
-      const puntos_local = parseInt(document.getElementById('part-pts-loc').value);
-      const puntos_visitante = parseInt(document.getElementById('part-pts-vis').value);
-      const chaves_local = parseInt(document.getElementById('part-chv-loc').value);
-      const chaves_visitante = parseInt(document.getElementById('part-chv-vis').value);
-      const estado = document.getElementById('part-estado').value;
+async function guardarPartido(e) {
+  e.preventDefault();
+  
+  const id = document.getElementById('part-id').value;
+  const jornada = parseInt(document.getElementById('part-jornada').value);
+  
+  // Obtenemos los valores directos del select
+  const valLocal = document.getElementById('part-local').value;
+  const valVisitante = document.getElementById('part-visitante').value;
 
-      if (equipo_local_id === equipo_visitante_id) {
-        alert('⚠️ Erro: O equipo local e o visitante non poden ser o mesmo.');
-        return;
-      }
+  // 1. VALIDACIÓN: Comprobar que se ha seleccionado algún equipo
+  if (!valLocal || !valVisitante) {
+    alert('⚠️ Por favor, selecciona un equipo local e un visitante.');
+    return;
+  }
 
-      if (estado === 'finalizado' && puntos_local === puntos_visitante) {
-        alert('⚠️ Erro: Na Chave non se admiten empates ao finalizar un partido.');
-        return;
-      }
+  // Si tus IDs en la base de datos son enteros (int8/serial), los convertimos:
+  const equipo_local_id = parseInt(valLocal);
+  const equipo_visitante_id = parseInt(valVisitante);
 
-      const payload = {
-        jornada, equipo_local_id, equipo_visitante_id,
-        puntos_local, puntos_visitante, chaves_local, chaves_visitante, estado
-      };
+  // Si tus IDs son UUID, quita el parseInt y usa directamente valLocal y valVisitante.
+  if (isNaN(equipo_local_id) || isNaN(equipo_visitante_id)) {
+    alert('⚠️ O ID do equipo seleccionado no es válido (NaN). Comproba que os equipos están cargados correctamente.');
+    return;
+  }
 
-      const { error } = id 
-        ? await supabaseClient.from('partidos').update(payload).eq('id', id)
-        : await supabaseClient.from('partidos').insert([payload]);
+  const puntos_local = parseInt(document.getElementById('part-pts-loc').value) || 0;
+  const puntos_visitante = parseInt(document.getElementById('part-pts-vis').value) || 0;
+  const chaves_local = parseInt(document.getElementById('part-chv-loc').value) || 0;
+  const chaves_visitante = parseInt(document.getElementById('part-chv-vis').value) || 0;
+  const estado = document.getElementById('part-estado').value;
 
-      if (error) {
-        alert('Error al guardar partido: ' + error.message);
-      } else {
-        resetForm('part');
-        cargarPartidos();
-      }
-    }
+  // 2. VALIDACIÓN: No enfrentar al mismo equipo
+  if (equipo_local_id === equipo_visitante_id) {
+    alert('⚠️ Erro: O equipo local e o visitante non poden ser o mesmo.');
+    return;
+  }
+
+  // 3. VALIDACIÓN: No empates en estado finalizado
+  if (estado === 'finalizado' && puntos_local === puntos_visitante) {
+    alert('⚠️ Erro: Na Chave non se admiten empates ao finalizar un partido.');
+    return;
+  }
+
+  const payload = {
+    jornada,
+    equipo_local_id,
+    equipo_visitante_id,
+    puntos_local,
+    puntos_visitante,
+    chaves_local,
+    chaves_visitante,
+    estado
+  };
+
+  console.log('Enviando partido:', payload); // Para revisar en la consola de F12 si hiciera falta
+
+  const { error } = id 
+    ? await supabaseClient.from('partidos').update(payload).eq('id', id)
+    : await supabaseClient.from('partidos').insert([payload]);
+
+  if (error) {
+    alert('Error al guardar partido: ' + error.message);
+  } else {
+    resetForm('part');
+    cargarPartidos();
+  }
+}
 
     // 5. EVENTOS CRUD
     async function cargarEventos() {
