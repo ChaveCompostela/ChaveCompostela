@@ -750,18 +750,21 @@ async function guardarEvento(e) {
 
   const id = document.getElementById('eve-id')?.value;
   const titulo = document.getElementById('eve-titulo')?.value;
-  const fecha = document.getElementById('eve-fecha')?.value;
+  const fechaInput = document.getElementById('eve-fecha')?.value;
   const lugar = document.getElementById('eve-lugar')?.value || '';
   const comentarios = document.getElementById('eve-comentarios')?.value || '';
 
-  if (!titulo || !fecha) {
+  if (!titulo || !fechaInput) {
     alert('⚠️ Por favor, rechea o título e a data do evento.');
     return;
   }
 
+  // Convertir la fecha local a un objeto Date e ISO string válido para Supabase
+  const fechaISO = new Date(fechaInput).toISOString();
+
   const payload = {
     titulo,
-    fecha,
+    fecha: fechaISO,
     lugar,
     comentarios
   };
@@ -771,8 +774,8 @@ async function guardarEvento(e) {
     : await supabaseClient.from('eventos').insert([payload]);
 
   if (error) {
-    console.error('Detalles del error Supabase:', error);
-    alert(`Error ao gardar evento (Código ${error.code}):\n${error.message}\n${error.details || ''}`);
+    console.error('Error detallado de Supabase:', error);
+    alert(`Error ao gardar evento: ${error.message} (${error.details || ''})`);
   } else {
     alert('✅ Evento gardado correctamente');
     resetForm('eve');
