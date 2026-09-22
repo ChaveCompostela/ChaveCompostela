@@ -286,14 +286,13 @@
     </div>
     
     <div class="form-group">
-      <label for="eve-lugar">Ubicación / Lugar</label>
+      <label for="eve-lugar">Lugar / Ubicación</label>
       <input type="text" id="eve-lugar" placeholder="Ex: Campo de San Lázaro">
     </div>
 
-    <!-- NUEVO CAMPO: COMENTARIOS -->
     <div class="form-group" style="grid-column: 1 / -1;">
       <label for="eve-comentarios">Comentarios / Observacións</label>
-      <textarea id="eve-comentarios" rows="2" placeholder="Información adicional, notas do torneo, etc." style="width: 100%; padding: 8px; box-sizing: border-box;"></textarea>
+      <textarea id="eve-comentarios" rows="2" placeholder="Notas e observaciones do evento..."></textarea>
     </div>
 
     <div style="grid-column: 1/-1; display: flex; gap: 10px;">
@@ -315,6 +314,7 @@
     <tbody></tbody>
   </table>
 </div>
+    
 <!-- SECCIÓN DE ACTA DE JUGADORES (se muestra cuando hay equipos seleccionados) -->
 <div id="seccion-jugadores" style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 15px; display: none;">
   <h3>Anotación individual de Chaves</h3>
@@ -692,21 +692,24 @@ async function guardarPartido(e) {
   document.getElementById('seccion-jugadores').style.display = 'none';
   cargarPartidos();
 }
-    // 5. EVENTOS CRUD
-// 1. Cargar la tabla de Eventos (ordenando por 'fecha')
+// 1. Cargar la tabla de Eventos
 async function cargarEventos() {
+  // Ordenamos explícitamente por 'fecha'
   const { data, error } = await supabaseClient
     .from('eventos')
     .select('*')
-    .order('fecha', { ascending: true }); // Usamos 'fecha' en lugar de 'data'
+    .order('fecha', { ascending: true });
 
-  if (error) return console.error('Error cargando eventos:', error.message);
+  if (error) {
+    console.error('Error cargando eventos:', error.message);
+    return;
+  }
 
   const tbody = document.querySelector('#tabla-eventos tbody');
   if (tbody) {
     tbody.innerHTML = (data || []).map(ev => {
       const tituloEsc = (ev.titulo || '').replace(/'/g, "\\'");
-      const lugarEsc = (ev.lugar || ev.ubicacion || '').replace(/'/g, "\\'");
+      const lugarEsc = (ev.lugar || '').replace(/'/g, "\\'");
       const comentariosEsc = (ev.comentarios || '').replace(/'/g, "\\'");
       const fechaVal = ev.fecha || '';
 
@@ -714,7 +717,7 @@ async function cargarEventos() {
         <tr>
           <td>${fechaVal ? new Date(fechaVal).toLocaleString('gl-ES', { dateStyle: 'short', timeStyle: 'short' }) : '-'}</td>
           <td><b>${ev.titulo}</b></td>
-          <td>${ev.lugar || ev.ubicacion || '-'}</td>
+          <td>${ev.lugar || '-'}</td>
           <td>${ev.comentarios || '-'}</td>
           <td class="action-btns">
             <button onclick="editarEvento(${ev.id}, '${tituloEsc}', '${fechaVal}', '${lugarEsc}', '${comentariosEsc}')">Editar</button>
@@ -728,14 +731,20 @@ async function cargarEventos() {
 
 // 2. Cargar evento en el formulario para editar
 function editarEvento(id, titulo, fecha, lugar, comentarios) {
-  if (document.getElementById('eve-id')) document.getElementById('eve-id').value = id;
-  if (document.getElementById('eve-titulo')) document.getElementById('eve-titulo').value = titulo;
-  if (document.getElementById('eve-fecha')) document.getElementById('eve-fecha').value = fecha ? fecha.slice(0, 16) : '';
-  if (document.getElementById('eve-lugar')) document.getElementById('eve-lugar').value = lugar || '';
-  if (document.getElementById('eve-comentarios')) document.getElementById('eve-comentarios').value = comentarios || '';
+  const elId = document.getElementById('eve-id');
+  const elTitulo = document.getElementById('eve-titulo');
+  const elFecha = document.getElementById('eve-fecha');
+  const elLugar = document.getElementById('eve-lugar');
+  const elComentarios = document.getElementById('eve-comentarios');
+
+  if (elId) elId.value = id;
+  if (elTitulo) elTitulo.value = titulo;
+  if (elFecha) elFecha.value = fecha ? fecha.slice(0, 16) : '';
+  if (elLugar) elLugar.value = lugar || '';
+  if (elComentarios) elComentarios.value = comentarios || '';
 }
 
-// 3. Guardar o actualizar Evento (Protegido contra elementos null)
+// 3. Guardar o actualizar Evento
 async function guardarEvento(e) {
   e.preventDefault();
 
