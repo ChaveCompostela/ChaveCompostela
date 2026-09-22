@@ -189,7 +189,7 @@
       </table>
     </div>
 
-    <!-- 3. JUGADORES (CON ASIGNACIÓN DE EQUIPO) -->
+    <!-- 3. JUGADORES -->
     <div id="panel-jugadores" class="panel">
       <h3>Xogadores</h3>
       <form onsubmit="guardarJugador(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
@@ -310,12 +310,13 @@
     // CONFIGURACIÓN SUPABASE
     const SUPABASE_URL = 'https://tlpkxrwwdosrzqcqwybq.supabase.co/';
     const SUPABASE_ANON_KEY = 'sb_publishable_C2pLthVQIIFVGAYJP4JPjw_5n1VwXIh';
-    const { createClient } = window.supabase;
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // Asignación explícita del cliente
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // CONTROL DE SESIÓN
     async function checkAuth() {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabaseClient.auth.getSession();
       if (session) {
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('admin-dashboard').style.display = 'block';
@@ -331,7 +332,7 @@
       const password = document.getElementById('login-password').value;
       const errBox = document.getElementById('login-error');
 
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
       if (error) {
         errBox.innerText = error.message;
         errBox.style.display = 'block';
@@ -342,7 +343,7 @@
     }
 
     async function logout() {
-      await supabase.auth.signOut();
+      await supabaseClient.auth.signOut();
       checkAuth();
     }
 
@@ -362,7 +363,7 @@
 
     // CARGA GENERAL
     async function cargarTodo() {
-      await cargarEquipos(); // Se carga primero para rellenar los desplegables de equipos
+      await cargarEquipos();
       cargarTemporadas();
       cargarJugadores();
       cargarPartidos();
@@ -371,7 +372,7 @@
 
     // 1. TEMPORADAS CRUD
     async function cargarTemporadas() {
-      const { data, error } = await supabase.from('temporadas').select('*').order('id', { ascending: false });
+      const { data, error } = await supabaseClient.from('temporadas').select('*').order('id', { ascending: false });
       if (error) return console.error(error);
       const tbody = document.querySelector('#tabla-temporadas tbody');
       tbody.innerHTML = (data || []).map(t => `
@@ -404,8 +405,8 @@
 
       const payload = { nombre, fecha_inicio, activa };
       const { error } = id 
-        ? await supabase.from('temporadas').update(payload).eq('id', id)
-        : await supabase.from('temporadas').insert([payload]);
+        ? await supabaseClient.from('temporadas').update(payload).eq('id', id)
+        : await supabaseClient.from('temporadas').insert([payload]);
 
       if (error) {
         alert('Error: ' + error.message);
@@ -417,7 +418,7 @@
 
     // 2. EQUIPOS CRUD
     async function cargarEquipos() {
-      const { data, error } = await supabase.from('equipos').select('*').order('nombre');
+      const { data, error } = await supabaseClient.from('equipos').select('*').order('nombre');
       if (error) return console.error(error);
       const tbody = document.querySelector('#tabla-equipos tbody');
       tbody.innerHTML = (data || []).map(eq => `
@@ -460,22 +461,21 @@
 
       const payload = { nombre, localidad };
       const { error } = id 
-        ? await supabase.from('equipos').update(payload).eq('id', id)
-        : await supabase.from('equipos').insert([payload]);
+        ? await supabaseClient.from('equipos').update(payload).eq('id', id)
+        : await supabaseClient.from('equipos').insert([payload]);
 
       if (error) {
         alert('Error: ' + error.message);
       } else {
         resetForm('eq');
         await cargarEquipos();
-        cargarJugadores(); // Actualiza también la vista de jugadores
+        cargarJugadores();
       }
     }
 
-    // 3. JUGADORES CRUD (CON SOPORTE DE EQUIPO)
+    // 3. JUGADORES CRUD
     async function cargarJugadores() {
-      // Consulta relacional para obtener el nombre del equipo asignado
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('jugadores')
         .select('*, equipos(nombre)')
         .order('apellidos');
@@ -519,8 +519,8 @@
 
       const payload = { nombre, apellidos, alias, equipo_id };
       const { error } = id 
-        ? await supabase.from('jugadores').update(payload).eq('id', id)
-        : await supabase.from('jugadores').insert([payload]);
+        ? await supabaseClient.from('jugadores').update(payload).eq('id', id)
+        : await supabaseClient.from('jugadores').insert([payload]);
 
       if (error) {
         alert('Error al guardar jugador: ' + error.message);
@@ -532,7 +532,7 @@
 
     // 4. PARTIDOS CRUD
     async function cargarPartidos() {
-      const { data, error } = await supabase.from('vista_calendario').select('*');
+      const { data, error } = await supabaseClient.from('vista_calendario').select('*');
       if (error) return console.error(error);
       const tbody = document.querySelector('#tabla-partidos tbody');
       tbody.innerHTML = (data || []).map(p => `
@@ -591,8 +591,8 @@
       };
 
       const { error } = id 
-        ? await supabase.from('partidos').update(payload).eq('id', id)
-        : await supabase.from('partidos').insert([payload]);
+        ? await supabaseClient.from('partidos').update(payload).eq('id', id)
+        : await supabaseClient.from('partidos').insert([payload]);
 
       if (error) {
         alert('Error al guardar partido: ' + error.message);
@@ -604,7 +604,7 @@
 
     // 5. EVENTOS CRUD
     async function cargarEventos() {
-      const { data, error } = await supabase.from('eventos').select('*').order('fecha_hora', { ascending: true });
+      const { data, error } = await supabaseClient.from('eventos').select('*').order('fecha_hora', { ascending: true });
       if (error) return console.error(error);
       const tbody = document.querySelector('#tabla-eventos tbody');
       tbody.innerHTML = (data || []).map(ev => `
@@ -640,8 +640,8 @@
 
       const payload = { titulo, fecha_hora, lugar };
       const { error } = id 
-        ? await supabase.from('eventos').update(payload).eq('id', id)
-        : await supabase.from('eventos').insert([payload]);
+        ? await supabaseClient.from('eventos').update(payload).eq('id', id)
+        : await supabaseClient.from('eventos').insert([payload]);
 
       if (error) {
         alert('Error al guardar evento: ' + error.message);
@@ -655,7 +655,7 @@
     async function eliminar(tabla, id, callback) {
       if (!id) return;
       if (confirm(`¿Seguro que desexas eliminar este rexistro de ${tabla}?`)) {
-        const { error } = await supabase.from(tabla).delete().eq('id', id);
+        const { error } = await supabaseClient.from(tabla).delete().eq('id', id);
         if (error) {
           alert('Error al eliminar: ' + error.message);
         } else {
@@ -669,4 +669,6 @@
   </script>
 </body>
 </html>
+
+   
  
