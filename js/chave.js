@@ -2,30 +2,39 @@
         // Variable global para recordar o xénero seleccionado (masculina/femenina)
         let activeGender = 'masculina';
 
-function switchTab(evt, tabName) {
-  // 1. Ocultar todos los paneles
-  document.querySelectorAll('.panel').forEach(panel => {
-    panel.style.display = 'none';
-    panel.classList.remove('active');
-  });
+ function switchView(viewName, element) {
 
-  // 2. Desactivar todos los botones
-  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.view-section').forEach(view => view.classList.remove('active'));
 
-  // 3. Activar el panel seleccionado (#panel-clubes, #panel-equipos, etc.)
-  const targetPanel = document.getElementById(`panel-${tabName}`) || document.getElementById(tabName);
-  if (targetPanel) {
-    targetPanel.style.display = 'block';
-    targetPanel.classList.add('active');
-  } else {
-    console.error(`No se encontró el panel con ID: panel-${tabName}`);
-  }
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
 
-  // 4. Activar el botón pulsado
-  if (evt && evt.currentTarget) {
-    evt.currentTarget.classList.add('active');
-  }
-}
+            
+
+            document.getElementById(`view-${viewName}`).classList.add('active');
+
+            element.classList.add('active');
+
+
+
+            // Amosar o selector superior en Equipos, Clasificación e Calendario
+
+            const leagueSelector = document.getElementById('leagueSelectorContainer');
+
+            if (viewName === 'equipos' || viewName === 'clasificacion' || viewName === 'calendario') {
+
+                leagueSelector.style.display = 'flex';
+
+                refreshLeagueView();
+
+            } else {
+
+                leagueSelector.style.display = 'none';
+
+            }
+
+        } 
+
+
 
 // Exposición global
 window.switchTab = switchTab;
