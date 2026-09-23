@@ -158,6 +158,7 @@ async function cargarEquipos() {
     .select(`
       id,
       nombre,
+      categoria,
       club_id,
       club:club_id ( nombre, localidad )
     `)
@@ -171,7 +172,7 @@ async function cargarEquipos() {
   const equipos = data || [];
   window.listaEquipos = equipos; // Caché global
 
-  // 1. Rellenar la tabla de equipos (5 columnas: ID, Equipo, Localidade, Clube, Accións)
+  // 1. Rellenar la tabla de equipos (6 columnas: ID, Equipo, Localidade, Categoria ,Clube, Accións)
   const tbody = document.querySelector('#tabla-equipos tbody');
   if (tbody) {
     if (equipos.length === 0) {
@@ -181,12 +182,14 @@ async function cargarEquipos() {
         const nombreEscapado = (eq.nombre || '').replace(/'/g, "\\'");
         const clubNombre = eq.club?.nombre || '—';
         const clubLocalidad = eq.club?.localidad || '—';
+        const categoriaEscapada = (eq.categoria || 'Masculina').replace(/'/g, "\\'");  
 
         return `
           <tr>
             <td>${eq.id}</td>
             <td><b>${eq.nombre}</b></td>
             <td>${clubLocalidad}</td>
+            <td>${eq.categoria || 'Masculina'}</td>
             <td>${clubNombre}</td>
             <td class="action-btns">
               <button type="button" onclick="editarEquipo(${eq.id}, '${nombreEscapado}', ${eq.club_id || 'null'})">Editar</button>
