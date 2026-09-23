@@ -327,50 +327,48 @@ async function cargarPartidos() {
   }).join('');
 }
 
-async function prepararEdicionPartido(id) {
-  // Busca el partido en tu variable listaPartidos
-  const p = listaPartidos.find(item => item.id == id);
-  if (!p) {
-    console.error('No se encontró el partido con ID:', id);
-    return;
+
+
+async function editarPartido(p) {
+  if (!p) return;
+
+  // Función auxiliar para asignar valores de forma segura sin romper la ejecución
+  const setVal = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.value = value ?? '';
+  };
+
+  // 1. Asignación segura a los campos del formulario
+  setVal('part-id', p.id || p.partido_id);
+  setVal('part-jornada', p.jornada || 1);
+  setVal('part-local', p.equipo_local_id);
+  setVal('part-visitante', p.equipo_visitante_id);
+  setVal('part-pts-loc', p.puntos_local ?? 0);
+  setVal('part-pts-vis', p.puntos_visitante ?? 0);
+  setVal('part-chv-loc', p.chaves_local ?? 0);
+  setVal('part-chv-vis', p.chaves_visitante ?? 0);
+  setVal('part-estado', p.estado || 'finalizado');
+
+  // 2. Cargar los jugadores y sus chaves asociadas
+  if (typeof actualizarVistaJugadores === 'function') {
+    await actualizarVistaJugadores();
   }
 
-  // 1. Asignar valores al formulario
-  if (document.getElementById('part-id')) document.getElementById('part-id').value = p.id;
-  if (document.getElementById('part-jornada')) document.getElementById('part-jornada').value = p.jornada || 1;
-  if (document.getElementById('part-local')) document.getElementById('part-local').value = p.equipo_local_id || '';
-  if (document.getElementById('part-visitante')) document.getElementById('part-visitante').value = p.equipo_visitante_id || '';
-  if (document.getElementById('part-pts-loc')) document.getElementById('part-pts-loc').value = p.puntos_local ?? 0;
-  if (document.getElementById('part-pts-vis')) document.getElementById('part-pts-vis').value = p.puntos_visitante ?? 0;
-  if (document.getElementById('part-chv-loc')) document.getElementById('part-chv-loc').value = p.chaves_local ?? 0;
-  if (document.getElementById('part-chv-vis')) document.getElementById('part-chv-vis').value = p.chaves_visitante ?? 0;
-  if (document.getElementById('part-estado')) document.getElementById('part-estado').value = p.estado || 'finalizado';
-
-  // 2. Cargar jugadores y sus chaves
-  await actualizarVistaJugadores();
-
-  // 3. Scroll hacia el formulario
-  const formulario = document.getElementById('part-id')?.closest('form') || document.getElementById('seccion-jugadores');
-  if (formulario) {
-    formulario.scrollIntoView({ behavior: 'smooth' });
+  // 3. Desplazar suavemente hasta el formulario
+  const formEl = document.getElementById('part-id')?.closest('form') || document.getElementById('seccion-jugadores');
+  if (formEl) {
+    formEl.scrollIntoView({ behavior: 'smooth' });
   }
 }
 
-async function editarPartido(p) {
-  const id = p.partido_id || p.id;
 
-  document.getElementById('part-id').value = id;
-  document.getElementById('part-jornada').value = p.jornada || '';
-  document.getElementById('part-local').value = p.equipo_local_id || '';
-  document.getElementById('part-visitante').value = p.equipo_visitante_id || '';
-  document.getElementById('part-pts-loc').value = p.puntos_local ?? 0;
-  document.getElementById('part-pts-vis').value = p.puntos_visitante ?? 0;
-  document.getElementById('part-chv-loc').value = p.chaves_local ?? 0;
-  document.getElementById('part-chv-vis').value = p.chaves_visitante ?? 0;
-  document.getElementById('part-estado').value = p.estado || 'finalizado';
-
-  // Forzar la actualización de la lista de jugadores de ambos equipos
-  await actualizarVistaJugadores();
+async function prepararEdicionPartido(id) {
+  const p = (typeof listaPartidos !== 'undefined' ? listaPartidos : []).find(item => item.id == id);
+  if (p) {
+    await editarPartido(p);
+  } else {
+    console.warn('No se encontró el partido con ID:', id);
+  }
 }
 
 async function guardarPartido(e) {
