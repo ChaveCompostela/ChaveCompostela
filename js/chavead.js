@@ -172,7 +172,7 @@ async function cargarEquipos() {
   const equipos = data || [];
   window.listaEquipos = equipos; // Caché global
 
-  // 1. Rellenar la tabla de equipos (6 columnas: ID, Equipo, Localidade, Categoria ,Clube, Accións)
+  // 1. Rellenar la tabla de equipos
   const tbody = document.querySelector('#tabla-equipos tbody');
   if (tbody) {
     if (equipos.length === 0) {
@@ -180,9 +180,9 @@ async function cargarEquipos() {
     } else {
       tbody.innerHTML = equipos.map(eq => {
         const nombreEscapado = (eq.nombre || '').replace(/'/g, "\\'");
+        const categoriaEscapada = (eq.categoria || 'Masculina').replace(/'/g, "\\'"); // 👈 Guardamos categoría
         const clubNombre = eq.club?.nombre || '—';
         const clubLocalidad = eq.club?.localidad || '—';
-        const categoriaEscapada = (eq.categoria || 'Masculina').replace(/'/g, "\\'");  
 
         return `
           <tr>
@@ -192,7 +192,8 @@ async function cargarEquipos() {
             <td>${eq.categoria || 'Masculina'}</td>
             <td>${clubNombre}</td>
             <td class="action-btns">
-              <button type="button" onclick="editarEquipo(${eq.id}, '${nombreEscapado}', ${eq.club_id || 'null'})">Editar</button>
+              <!-- 👈 Le pasamos categoriaEscapada como 3er argumento -->
+              <button type="button" onclick="editarEquipo(${eq.id}, '${nombreEscapado}', '${categoriaEscapada}', ${eq.club_id || 'null'})">Editar</button>
               <button type="button" onclick="eliminar('equipos', ${eq.id}, cargarEquipos)" class="btn-danger">Borrar</button>
             </td>
           </tr>
@@ -223,7 +224,8 @@ async function cargarEquipos() {
   }
 }
 
-function editarEquipo(id, nombre, clubId) {
+// 👈 Añadido parámetro 'categoria'
+function editarEquipo(id, nombre, categoria, clubId) {
   const setVal = (elemId, val) => {
     const el = document.getElementById(elemId);
     if (el) el.value = val ?? '';
@@ -231,6 +233,7 @@ function editarEquipo(id, nombre, clubId) {
 
   setVal('eq-id', id);
   setVal('eq-nombre', nombre);
+  setVal('eq-categoria', categoria || 'Masculina'); // 👈 Rellena la categoría en el select
   setVal('eq-clube', clubId); // Asigna el club seleccionado en el desplegable
 }
 
@@ -239,6 +242,7 @@ async function guardarEquipo(e) {
 
   const id = document.getElementById('eq-id')?.value;
   const nombre = document.getElementById('eq-nombre')?.value.trim();
+  const categoria = document.getElementById('eq-categoria')?.value; // 👈 Leemos el select de categoría
   const clubId = document.getElementById('eq-clube')?.value;
 
   if (!nombre) {
@@ -246,9 +250,10 @@ async function guardarEquipo(e) {
     return;
   }
 
-  // Enviamos 'club_id' para vincular con la tabla 'club'
+  // Enviamos 'categoria' y 'club_id'
   const payload = {
     nombre: nombre,
+    categoria: categoria || 'Masculina', // 👈 Se añade al payload
     club_id: clubId ? parseInt(clubId) : null
   };
 
@@ -264,7 +269,6 @@ async function guardarEquipo(e) {
     if (typeof cargarJugadores === 'function') cargarJugadores();
   }
 }
-
 // Exposición global para eventos HTML (onclick, onsubmit)
 window.cargarEquipos = cargarEquipos;
 window.editarEquipo = editarEquipo;
