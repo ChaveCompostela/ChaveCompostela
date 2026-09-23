@@ -840,7 +840,7 @@ async function cargarClubes() {
   tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Cargando clubes...</td></tr>';
 
   const { data: clubes, error } = await supabaseClient
-    .from('clubes')
+    .from('club')
     .select('*')
     .order('nombre', { ascending: true });
 
@@ -886,10 +886,10 @@ async function guardarClub(event) {
   let response;
   if (id) {
     // Modo Edición
-    response = await supabaseClient.from('clubes').update(datos).eq('id', id);
+    response = await supabaseClient.from('club').update(datos).eq('id', id);
   } else {
     // Modo Creación
-    response = await supabaseClient.from('clubes').insert([datos]);
+    response = await supabaseClient.from('club').insert([datos]);
   }
 
   if (response.error) {
@@ -918,7 +918,7 @@ function prepararEdicionClub(id) {
 async function eliminarClub(id) {
   if (!confirm('¿Seguro que deseas eliminar este club?')) return;
 
-  const { error } = await supabaseClient.from('clubes').delete().eq('id', id);
+  const { error } = await supabaseClient.from('club').delete().eq('id', id);
 
   if (error) {
     alert('Error al eliminar club: ' + error.message);
@@ -928,14 +928,4 @@ async function eliminarClub(id) {
   await cargarClubes();
 }
 
-// 5. Complemento para resetForm(prefix)
-// Si ya tienes un resetForm genérico, asegúrate de que contemple el prefijo 'club':
-function resetForm(prefix) {
-  if (prefix === 'club') {
-    document.getElementById('club-id').value = '';
-    document.getElementById('club-nombre').value = '';
-    document.getElementById('club-localidad').value = '';
-    const title = document.getElementById('club-form-title');
-    if (title) title.textContent = 'Crear / Editar Club';
-  }
-}
+
