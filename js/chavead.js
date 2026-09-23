@@ -265,35 +265,67 @@ async function cargarJugadores() {
 let listaPartidos = [];
 
 async function cargarPartidos() {
-  const { data, error } = await supabaseClient.from('vista_calendario').select('*');
-  
+  // 1. Seleccionar el tbody dentro de #tabla-partidos
+  const tbody = document.querySelector('#tabla-partidos tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Cargando partidos...</td></tr>';
+
+  // 2. Consultar partidos a Supabase trayendo el nombre de los equipos
+  const { data: partidos, error } = await supabaseClient
+    .from('partidos')
+    .select(`
+      id,
+      jornada,
+      puntos_local,
+      puntos_visitante,
+      chaves_local,
+      chaves_visitante,
+      estado,
+      equipo_local_id,
+      equipo_visitante_id,
+      equipo_local:equipos!equipo_local_id(nombre),
+      equipo_visitante:equipos!equipo_visitante_id(nombre)
+    `)
+    .order('jornada', { ascending: true });
+
   if (error) {
-    console.error("Error al cargar partidos:", error);
+    console.error('Error al obtener partidos:', error);
+    tbody.innerHTML = `<tr><td colspan="7" style="color:red; text-align:center;">Error: ${error.message}</td></tr>`;
     return;
   }
 
-  listaPartidos = data || []; // Guardamos los partidos
-  const tbody = document.querySelector('#tabla-partidos tbody');
+  if (!partidos || partidos.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No hay partidos registrados aún.</td></tr>';
+    return;
+  }
 
-  tbody.innerHTML = listaPartidos.map(p => {
-    const id = p.partido_id || p.id;
+  // 3. Renderizar las filas con las 7 columnas exactas
+  tbody.innerHTML = partidos.map(p => {
+    const nomLocal = p.equipo_local?.nombre || `Equipo ${p.equipo_local_id}`;
+    const nomVisita = p.equipo_visitante?.nombre || `Equipo ${p.equipo_visitante_id}`;
+    
+    const resultado = p.estado === 'finalizado' 
+      ? `<strong>${p.puntos_local ?? 0} - ${p.puntos_visitante ?? 0}</strong>` 
+      : '—';
+
+    const chaves = `${p.chaves_local ?? 0} - ${p.chaves_visitante ?? 0}`;
+
     return `
       <tr>
-        <td>${p.jornada || ''}</td>
-        <td>${p.equipo_local || ''}</td>
-        <td>${p.equipo_visitante || ''}</td>
-        <td><b>${p.puntos_local ?? 0} - ${p.puntos_visitante ?? 0}</b></td>
-        <td>${p.chaves_local ?? 0} / ${p.chaves_visitante ?? 0}</td>
-        <td>${p.estado || ''}</td>
-        <td class="action-btns">
-          <button onclick="prepararEdicion(${id})">Editar</button>
-          <button onclick="eliminar('partidos', ${id}, cargarPartidos)" class="btn-danger">Borrar</button>
+        <td>J${p.jornada || 1}</td>
+        <td>${nomLocal}</td>
+        <td>${nomVisita}</td>
+        <td>${resultado}</td>
+        <td>${chaves}</td>
+        <td>${p.estado || 'pendiente'}</td>
+        <td>
+          <button type="button" onclick='editarPartido(${JSON.stringify(p)})'>Editar</button>
         </td>
       </tr>
     `;
   }).join('');
 }
-
 // Función auxiliar para buscar el partido sin problemas de sintaxis en HTML
 function prepararEdicion(id) {
   const partido = listaPartidos.find(p => (p.partido_id || p.id) === id);
