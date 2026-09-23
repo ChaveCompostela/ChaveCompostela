@@ -110,11 +110,26 @@
     }
 
     // 2. EQUIPOS CRUD
+// ==========================================
+// GESTIÓN DE EQUIPOS (Con relación a Club)
+// ==========================================
+
 async function cargarEquipos() {
+  // 0. Cargar el desplegable de clubes en el formulario si existe la función
+  if (typeof cargarDesplegableClubes === 'function') {
+    await cargarDesplegableClubes();
+  }
+
+  // Consulta relacional para obtener el equipo y los datos del club vinculado
   const { data, error } = await supabaseClient
     .from('equipos')
-    .select('*')
-    .order('nombre');
+    .select(`
+      id,
+      nombre,
+      club_id,
+      club:club_id ( nombre, localidad )
+    `)
+    .order('nombre', { ascending: true });
 
   if (error) {
     console.error('Error al cargar equipos:', error.message);
@@ -122,34 +137,39 @@ async function cargarEquipos() {
   }
 
   const equipos = data || [];
+  window.listaEquipos = equipos; // Caché global
 
-  // 1. Rellenar la tabla de equipos (protegido contra 'null' si no existe en la vista)
+  // 1. Rellenar la tabla de equipos (5 columnas: ID, Equipo, Localidade, Clube, Accións)
   const tbody = document.querySelector('#tabla-equipos tbody');
   if (tbody) {
-    tbody.innerHTML = equipos.map(eq => {
-      // Escapar comillas simples para evitar errores en las funciones onclick
-      const nombreEscapado = (eq.nombre || '').replace(/'/g, "\\'");
-      const localidadEscapada = (eq.localidad || '').replace(/'/g, "\\'");
+    if (equipos.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay equipos registrados.</td></tr>';
+    } else {
+      tbody.innerHTML = equipos.map(eq => {
+        const nombreEscapado = (eq.nombre || '').replace(/'/g, "\\'");
+        const clubNombre = eq.club?.nombre || '—';
+        const clubLocalidad = eq.club?.localidad || '—';
 
-      return `
-        <tr>
-          <td>${eq.id}</td>
-          <td><b>${eq.nombre}</b></td>
-          <td>${eq.localidad}</b></td>
-          <td>${eq.club || '-'}</td>
-          <td class="action-btns">
-            <button onclick="editarEquipo(${eq.id}, '${nombreEscapado}', '${localidadEscapada}')">Editar</button>
-            <button onclick="eliminar('equipos', ${eq.id}, cargarEquipos)" class="btn-danger">Borrar</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
+        return `
+          <tr>
+            <td>${eq.id}</td>
+            <td><b>${eq.nombre}</b></td>
+            <td>${clubLocalidad}</td>
+            <td>${clubNombre}</td>
+            <td class="action-btns">
+              <button type="button" onclick="editarEquipo(${eq.id}, '${nombreEscapado}', ${eq.club_id || 'null'})">Editar</button>
+              <button type="button" onclick="eliminar('equipos', ${eq.id}, cargarEquipos)" class="btn-danger">Borrar</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
   }
 
-  // 2. Generar el HTML de las opciones una sola vez para reutilizarlo
+  // 2. Generar el HTML de las opciones de equipos
   const opcionesEquipos = equipos.map(eq => `<option value="${eq.id}">${eq.nombre}</option>`).join('');
 
-  // 3. Rellenar desplegables de Partidos (Local y Visitante) con opción por defecto
+  // 3. Rellenar desplegables de Partidos (Local y Visitante)
   const selectsPartidos = [
     document.getElementById('part-local'),
     document.getElementById('part-visitante')
@@ -168,32 +188,52 @@ async function cargarEquipos() {
   }
 }
 
-    function editarEquipo(id, nombre, localidad) {
-      document.getElementById('eq-id').value = id;
-      document.getElementById('eq-nombre').value = nombre;
-      document.getElementById('eq-localidad').value = localidad;
-    }
+function editarEquipo(id, nombre, clubId) {
+  const setVal = (elemId, val) => {
+    const el = document.getElementById(elemId);
+    if (el) el.value = val ?? '';
+  };
 
-    async function guardarEquipo(e) {
-      e.preventDefault();
-      const id = document.getElementById('eq-id').value;
-      const nombre = document.getElementById('eq-nombre').value;
-      const localidad = document.getElementById('eq-localidad').value;
+  setVal('eq-id', id);
+  setVal('eq-nombre', nombre);
+  setVal('eq-clube', clubId); // Asigna el club seleccionado en el desplegable
+}
 
-      const payload = { nombre, localidad };
-      const { error } = id 
-        ? await supabaseClient.from('equipos').update(payload).eq('id', id)
-        : await supabaseClient.from('equipos').insert([payload]);
+async function guardarEquipo(e) {
+  e.preventDefault();
 
-      if (error) {
-        alert('Error: ' + error.message);
-      } else {
-        resetForm('eq');
-        await cargarEquipos();
-        cargarJugadores();
-      }
-    }
+  const id = document.getElementById('eq-id')?.value;
+  const nombre = document.getElementById('eq-nombre')?.value.trim();
+  const clubId = document.getElementById('eq-clube')?.value;
 
+  if (!nombre) {
+    alert('El nombre del equipo es obligatorio');
+    return;
+  }
+
+  // Enviamos 'club_id' para vincular con la tabla 'club'
+  const payload = {
+    nombre: nombre,
+    club_id: clubId ? parseInt(clubId) : null
+  };
+
+  const { error } = id 
+    ? await supabaseClient.from('equipos').update(payload).eq('id', id)
+    : await supabaseClient.from('equipos').insert([payload]);
+
+  if (error) {
+    alert('Error al guardar el equipo: ' + error.message);
+  } else {
+    if (typeof resetForm === 'function') resetForm('eq');
+    await cargarEquipos();
+    if (typeof cargarJugadores === 'function') cargarJugadores();
+  }
+}
+
+// Exposición global para eventos HTML (onclick, onsubmit)
+window.cargarEquipos = cargarEquipos;
+window.editarEquipo = editarEquipo;
+window.guardarEquipo = guardarEquipo;
     // 3. JUGADORES CRUD
  // Función auxiliar para escapar texto en atributos HTML
 function escapeHTML(str) {
