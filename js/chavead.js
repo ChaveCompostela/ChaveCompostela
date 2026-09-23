@@ -923,35 +923,35 @@ async function cargarClubes() {
   }).join('');
 }
 
-// 2. Cargar clubes en los desplegables de formularios (ej: eq-clube)
 async function cargarDesplegableClubes() {
-  const selectClub = document.getElementById('eq-clube');
-  if (!selectClub) return;
+  // Selecciona todos los desplegables por ID o por clase CSS '.select-clube'
+  const selects = document.querySelectorAll('#eq-clube, select[name="club_id"], .select-clube');
+  
+  if (selects.length === 0) return;
 
+  // Consulta a la tabla de Supabase (asegúrate de si es 'club' o 'clubes')
   const { data: clubes, error } = await supabaseClient
     .from('club')
     .select('id, nombre')
     .order('nombre', { ascending: true });
 
   if (error) {
-    console.error('Error al cargar el desplegable de clubes:', error.message);
+    console.error('Error al obtener clubes para el desplegable:', error.message);
     return;
   }
 
-  const opciones = (clubes || []).map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
-  selectClub.innerHTML = '<option value="">-- Selecciona un Club --</option>' + opciones;
-}
+  const lista = clubes || [];
+  console.log(`Cargados ${lista.length} clubes en los desplegables:`, lista);
 
-// 3. Cargar datos en el formulario para editar
-function editarClub(id, nombre, localidad) {
-  const setVal = (elemId, val) => {
-    const el = document.getElementById(elemId);
-    if (el) el.value = val ?? '';
-  };
+  // Generar el HTML de las opciones
+  const opcionesHTML = lista.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
 
-  setVal('club-id', id);
-  setVal('club-nombre', nombre);
-  setVal('club-localidad', localidad);
+  // Aplicar a cada select encontrado en la página
+  selects.forEach(select => {
+    const valorSeleccionado = select.value; // Guardar valor si se estaba editando
+    select.innerHTML = '<option value="">-- Selecciona un Club --</option>' + opcionesHTML;
+    if (valorSeleccionado) select.value = valorSeleccionado;
+  });
 }
 
 // Exposición global
