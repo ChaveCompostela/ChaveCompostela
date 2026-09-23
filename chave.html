@@ -53,40 +53,39 @@
 
   <!-- 0. CLUB -->
   
-  <!-- Formulario para Crear / Editar Club -->
-  <form id="form-club" onsubmit="guardarClub(event)" style="margin-bottom: 20px;">
-    <!-- Campo oculto para guardar el ID al editar -->
-    <input type="hidden" id="club-id" value="" />
+<div id="panel-clubes" class="panel">
+  <h3 id="club-form-title">Crear / Editar Club</h3>
+  <form onsubmit="guardarClub(event)" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+    <input type="hidden" id="club-id">
 
-    <div>
-      <label for="club-nombre">Nombre del Club:</label>
-      <input type="text" id="club-nombre" required placeholder="Ej: Club Deportivo Chave" />
+    <div class="form-group">
+      <label>Nome do Club</label>
+      <input type="text" id="club-nombre" required placeholder="Ej: Club Deportivo Chave">
     </div>
 
-    <div>
-      <label for="club-localidad">Localidad:</label>
-      <input type="text" id="club-localidad" placeholder="Ej: Ferrol" />
+    <div class="form-group">
+      <label>Localidade</label>
+      <input type="text" id="club-localidad" placeholder="Ej: Ferrol">
     </div>
 
-    <button type="submit" id="btn-guardar-club">Guardar Club</button>
-    <button type="button" id="btn-cancelar-club" style="display: none;" onclick="cancelarEdicionClub()">Cancelar</button>
+    <div style="grid-column: 1/-1; display: flex; gap: 10px;">
+      <button type="submit">Gardar Club</button>
+      <button type="button" class="btn-secondary" onclick="resetForm('club')">Cancelar / Limpar</button>
+    </div>
   </form>
 
-  <!-- Tabla de Clubes -->
-  <table>
+  <table id="tabla-clubes">
     <thead>
       <tr>
         <th>ID</th>
-        <th>Nombre</th>
-        <th>Localidad</th>
-        <th>Acciones</th>
+        <th>Nome</th>
+        <th>Localidade</th>
+        <th>Accións</th>
       </tr>
     </thead>
-    <tbody id="tabla-clubes-body">
-      <!-- Se llena dinámicamente -->
-    </tbody>
+    <tbody></tbody>
   </table>
-</section>
+</div>
     
     <!-- 1. TEMPORADAS -->
     <div id="panel-temporadas" class="panel active">
