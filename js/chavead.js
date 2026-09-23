@@ -883,118 +883,84 @@ async function guardarEvento(e) {
 
 let listaClubes = [];
 
-// 1. Cargar y renderizar los clubes en la tabla
 // ==========================================
-// GESTIÓN DE CLUBES
+// GESTIÓN DE CLUBES (Unificado)
 // ==========================================
 
+// 1. Cargar clubes en la tabla Y en el desplegable de Equipos
 async function cargarClubes() {
-  const tbody = document.querySelector('#tabla-clubes tbody');
-
-  // Si no estamos en la vista de clubes o la tabla no existe en el DOM, no ejecutamos
-  if (!tbody) return;
-
-  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Cargando clubes...</td></tr>';
-
-  // NOTA: Ajusta 'club' si en tu base de datos de Supabase la tabla se llama 'clubes'
-  const { data: clubes, error } = await supabaseClient
+  const { data, error } = await supabaseClient
     .from('club') 
     .select('id, nombre, localidad')
     .order('nombre', { ascending: true });
 
   if (error) {
     console.error('Error al cargar clubes:', error.message);
-    tbody.innerHTML = `<tr><td colspan="4" style="color:red; text-align:center;">Error al cargar: ${error.message}</td></tr>`;
-    return;
-  }
-
-  if (!clubes || clubes.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No hay clubes registrados aún.</td></tr>';
-    return;
-  }
-
-  // Renderizar las filas de la tabla de clubes
-  tbody.innerHTML = clubes.map(c => {
-    const nombreEscapado = (c.nombre || '').replace(/'/g, "\\'");
-    const localidadEscapada = (c.localidad || '').replace(/'/g, "\\'");
-
-    return `
-      <tr>
-        <td>${c.id}</td>
-        <td><b>${c.nombre}</b></td>
-        <td>${c.localidad || '—'}</td>
-        <td class="action-btns">
-          <button type="button" onclick="editarClub(${c.id}, '${nombreEscapado}', '${localidadEscapada}')">Editar</button>
-          <button type="button" class="btn-danger" style="background-color: #dc3545; color: white;" onclick="eliminar('club', ${c.id}, cargarClubes)">Borrar</button>
-        </td>
-      </tr>
-    `;
-  }).join('');
-}
-
-
-
-// Exposición global
-window.cargarClubes = cargarClubes;
-window.editarClub = editarClub;
-
-// 2. Guardar (Crear o Editar)
-async function cargarClubes() {
-  const { data, error } = await supabaseClient
-    .from('club')
-    .select('*')
-    .order('nombre');
-
-  if (error) {
-    console.error('Error al cargar clubes:', error.message);
+    const tbody = document.querySelector('#tabla-clubes tbody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="color:red; text-align:center;">Error: ${error.message}</td></tr>`;
     return;
   }
 
   const clubes = data || [];
+  listaClubes = clubes;
 
-  // 1. Rellenar la tabla de clubes
+  // A) Rellenar la tabla de clubes
   const tbody = document.querySelector('#tabla-clubes tbody');
   if (tbody) {
-    tbody.innerHTML = clubes.map(c => {
-      const nom = escapeHTML(c.nombre);
-      const loc = escapeHTML(c.localidad || '');
+    if (clubes.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No hay clubes registrados aún.</td></tr>';
+    } else {
+      tbody.innerHTML = clubes.map(c => {
+        const nombreEscapado = (c.nombre || '').replace(/'/g, "\\'");
+        const localidadEscapada = (c.localidad || '').replace(/'/g, "\\'");
 
-      return `
-        <tr>
-          <td>${c.id}</td>
-          <td><b>${c.nombre}</b></td>
-          <td>${c.localidad || '-'}</td>
-          <td class="action-btns">
-            <button onclick="editarClub(${c.id}, '${nom}', '${loc}')">Editar</button>
-            <button onclick="eliminar('club', ${c.id}, cargarClubes)" class="btn-danger">Borrar</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
+        return `
+          <tr>
+            <td>${c.id}</td>
+            <td><b>${c.nombre}</b></td>
+            <td>${c.localidad || '—'}</td>
+            <td class="action-btns">
+              <button type="button" onclick="editarClub(${c.id}, '${nombreEscapado}', '${localidadEscapada}')">Editar</button>
+              <button type="button" class="btn-danger" style="background-color: #dc3545; color: white;" onclick="eliminar('club', ${c.id}, cargarClubes)">Borrar</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
   }
 
-  // 2. Generar opciones y rellenar el desplegable de Equipos (#eq-clube)
-  const opcionesClubes = clubes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
-
+  // B) Rellenar el desplegable de Equipos (#eq-clube)
   const selectEqClub = document.getElementById('eq-clube');
   if (selectEqClub) {
+    const opcionesClubes = clubes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
     selectEqClub.innerHTML = '<option value="">-- Sen Club --</option>' + opcionesClubes;
   }
 }
 
+// 2. Cargar datos en el formulario para editar
 function editarClub(id, nombre, localidad) {
-  document.getElementById('club-id').value = id;
-  document.getElementById('club-nombre').value = nombre;
-  document.getElementById('club-localidad').value = localidad;
+  const inputId = document.getElementById('club-id');
+  const inputNombre = document.getElementById('club-nombre');
+  const inputLocalidad = document.getElementById('club-localidad');
+
+  if (inputId) inputId.value = id;
+  if (inputNombre) inputNombre.value = nombre;
+  if (inputLocalidad) inputLocalidad.value = localidad;
+
+  const title = document.getElementById('club-form-title');
+  if (title) title.textContent = 'Editar Club';
 }
 
+// 3. Guardar (Crear o Editar)
 async function guardarClub(e) {
-  e.preventDefault();
-  const id = document.getElementById('club-id').value;
-  const nombre = document.getElementById('club-nombre').value;
-  const localidad = document.getElementById('club-localidad').value;
+  if (e) e.preventDefault();
+
+  const id = document.getElementById('club-id')?.value;
+  const nombre = document.getElementById('club-nombre')?.value;
+  const localidad = document.getElementById('club-localidad')?.value;
 
   const payload = { nombre, localidad };
+
   const { error } = id 
     ? await supabaseClient.from('club').update(payload).eq('id', id)
     : await supabaseClient.from('club').insert([payload]);
@@ -1002,35 +968,15 @@ async function guardarClub(e) {
   if (error) {
     alert('Error al guardar club: ' + error.message);
   } else {
-    resetForm('club');
-    await cargarClubes(); // Actualiza la tabla y el desplegable eq-clube al instante
+    if (typeof resetForm === 'function') resetForm('club');
+    await cargarClubes(); // Actualiza la tabla Y el desplegable eq-clube
   }
 }
-// 3. Cargar datos en el formulario para editar
-function prepararEdicionClub(id) {
-  const club = listaClubes.find(c => c.id === id);
-  if (!club) return;
 
-  document.getElementById('club-id').value = club.id;
-  document.getElementById('club-nombre').value = club.nombre;
-  document.getElementById('club-localidad').value = club.localidad || '';
-
-  const title = document.getElementById('club-form-title');
-  if (title) title.textContent = 'Editar Club';
-}
-
-// 4. Eliminar Club
-async function eliminarClub(id) {
-  if (!confirm('¿Seguro que deseas eliminar este club?')) return;
-
-  const { error } = await supabaseClient.from('club').delete().eq('id', id);
-
-  if (error) {
-    alert('Error al eliminar club: ' + error.message);
-    return;
-  }
-
-  await cargarClubes();
-}
-
+// ==========================================
+// EXPOSICIÓN GLOBAL (SIEMPRE AL FINAL)
+// ==========================================
+window.cargarClubes = cargarClubes;
+window.editarClub = editarClub;
+window.guardarClub = guardarClub;
 
