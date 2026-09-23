@@ -298,14 +298,14 @@ async function cargarJugadores() {
         <td>${j.alias || '-'}</td>
         <td><b>${nombreEquipo}</b></td>
         <td class="action-btns">
-          <button onclick="editarJugador(${j.id}, '${nom}', '${ape}', '${ali}', ${j.equipo_id || 'null'})">Editar</button>
+          <button onclick="editarJugador(${j.id}, '${nom}', '${ape}', ${j.equipo_id || 'null'})">Editar</button>
           <button onclick="eliminar('jugadores', ${j.id}, cargarJugadores)" class="btn-danger">Borrar</button>
         </td>
       </tr>
     `;
   }).join('');
 }
-    function editarJugador(id, nombre, apellidos, alias, equipoId) {
+    function editarJugador(id, nombre, apellidos, equipoId) {
       document.getElementById('jug-id').value = id;
       document.getElementById('jug-nombre').value = nombre;
       document.getElementById('jug-apellidos').value = apellidos;
@@ -318,7 +318,6 @@ async function cargarJugadores() {
       const id = document.getElementById('jug-id').value;
       const nombre = document.getElementById('jug-nombre').value;
       const apellidos = document.getElementById('jug-apellidos').value;
-      const alias = document.getElementById('jug-alias').value;
       const equipoVal = document.getElementById('jug-equipo').value;
       const equipo_id = equipoVal ? parseInt(equipoVal) : null;
 
