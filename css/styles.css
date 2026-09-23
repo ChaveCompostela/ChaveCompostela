@@ -1,4 +1,3 @@
- <style>
         :root {
             --color-primary: #8B0000; /* Vermello Santiago */
             --color-secondary: #D4AF37; /* Ouro vello / Bronce */
@@ -135,4 +134,4 @@ body {
         .chavistas-count { font-weight: 700; color: var(--color-primary); text-align: right; }
         .player-team-sub { font-size: 0.75rem; color: #64748B; display: block; margin-top: 1px; }
 
-    </style>
+  
