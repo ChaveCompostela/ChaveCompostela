@@ -138,7 +138,7 @@
       </table>
     </div>
 
-    <!-- 4. PARTIDOS -->
+   <!-- 4. PARTIDOS -->
     <div id="panel-partidos" class="panel">
       <h3>Crear / Actualizar Resultado de Partido</h3>
       <p style="color: var(--gold); font-size: 0.85rem; margin-top: 5px;">⚠️ Recordatorio: Na Chave non hai empates. En estado "finalizado", a puntuación debe ser diferente.</p>
@@ -151,11 +151,11 @@
         </div>
         <div class="form-group">
           <label>Equipo Local</label>
-          <select id="part-local" required></select>
+          <select id="part-local" onchange="actualizarJugadoresFormulario()" required></select>
         </div>
         <div class="form-group">
           <label>Equipo Visitante</label>
-          <select id="part-visitante" required></select>
+          <select id="part-visitante" onchange="actualizarJugadoresFormulario()" required></select>
         </div>
         <div class="form-group">
           <label>Puntos Local</label>
@@ -165,7 +165,7 @@
           <label>Puntos Visitante</label>
           <input type="number" id="part-pts-vis" value="0" min="0">
         </div>
-         <div class="form-group">
+        <div class="form-group">
           <label>Estado</label>
           <select id="part-estado">
             <option value="pendiente">Pendiente</option>
@@ -173,12 +173,29 @@
             <option value="suspendido">Suspendido</option>
           </select>
         </div>
-        <div style="grid-column: 1/-1; display: flex; gap: 10px;">
+
+        <!-- SECCIÓN DE ACTA DE JUGADORES (Integrada dentro del panel de partidos) -->
+        <div id="seccion-jugadores" style="grid-column: 1/-1; margin-top: 10px; border-top: 1px solid #ccc; padding-top: 15px; display: none;">
+          <h3>Anotación individual de Chaves</h3>
+          <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 250px;">
+              <h4 id="titulo-jugadores-local" style="color: #2c3e50;">Jugadores Local</h4>
+              <div id="contenedor-jugadores-local"></div>
+            </div>
+            <div style="flex: 1; min-width: 250px;">
+              <h4 id="titulo-jugadores-visita" style="color: #2c3e50;">Jugadores Visitante</h4>
+              <div id="contenedor-jugadores-visita"></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="grid-column: 1/-1; display: flex; gap: 10px; margin-top: 10px;">
           <button type="submit">Gardar Partido / Marcador</button>
           <button type="button" class="btn-secondary" onclick="resetForm('part')">Cancelar / Limpar</button>
         </div>
       </form>
-      <table id="tabla-partidos">
+
+      <table id="tabla-partidos" style="margin-top: 20px;">
         <thead><tr><th>Xor.</th><th>Local</th><th>Visitante</th><th>Resultado</th><th>Chaves</th><th>Estado</th><th>Accións</th></tr></thead>
         <tbody></tbody>
       </table>
