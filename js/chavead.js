@@ -192,32 +192,44 @@ async function cargarEquipos() {
     }
 
     // 3. JUGADORES CRUD
-    async function cargarJugadores() {
-      const { data, error } = await supabaseClient
-        .from('jugadores')
-        .select('*, equipos(nombre)')
-        .order('apellidos');
+ // Función auxiliar para escapar texto en atributos HTML
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/'/g, "&#39;")
+    .replace(/"/g, "&quot;");
+}
 
-      if (error) return console.error(error);
+// Ejemplo corregido en cargarJugadores:
+async function cargarJugadores() {
+  const { data, error } = await supabaseClient
+    .from('jugadores')
+    .select('*, equipos(nombre)')
+    .order('apellidos');
 
-      const tbody = document.querySelector('#tabla-jugadores tbody');
-      tbody.innerHTML = (data || []).map(j => {
-        const nombreEquipo = j.equipos ? j.equipos.nombre : '<em style="color:var(--muted)">Sin equipo</em>';
-        return `
-          <tr>
-            <td>${j.id}</td>
-            <td>${j.apellidos}, ${j.nombre}</td>
-            <td>${j.alias || '-'}</td>
-            <td><b>${nombreEquipo}</b></td>
-            <td class="action-btns">
-              <button onclick="editarJugador(${j.id}, '${j.nombre}', '${j.apellidos}', '${j.alias || ''}', ${j.equipo_id || 'null'})">Editar</button>
-              <button onclick="eliminar('jugadores', ${j.id}, cargarJugadores)" class="btn-danger">Borrar</button>
-            </td>
-          </tr>
-        `;
-      }).join('');
-    }
+  if (error) return console.error(error);
 
+  const tbody = document.querySelector('#tabla-jugadores tbody');
+  tbody.innerHTML = (data || []).map(j => {
+    const nombreEquipo = j.equipos ? j.equipos.nombre : '<em style="color:var(--muted)">Sin equipo</em>';
+    const nom = escapeHTML(j.nombre);
+    const ape = escapeHTML(j.apellidos);
+    const ali = escapeHTML(j.alias || '');
+
+    return `
+      <tr>
+        <td>${j.id}</td>
+        <td>${j.apellidos}, ${j.nombre}</td>
+        <td>${j.alias || '-'}</td>
+        <td><b>${nombreEquipo}</b></td>
+        <td class="action-btns">
+          <button onclick="editarJugador(${j.id}, '${nom}', '${ape}', '${ali}', ${j.equipo_id || 'null'})">Editar</button>
+          <button onclick="eliminar('jugadores', ${j.id}, cargarJugadores)" class="btn-danger">Borrar</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
     function editarJugador(id, nombre, apellidos, alias, equipoId) {
       document.getElementById('jug-id').value = id;
       document.getElementById('jug-nombre').value = nombre;
@@ -290,7 +302,6 @@ function prepararEdicion(id) {
   }
 }
 
-// Función editarPartido actualizada aceptando el objeto completo
 async function editarPartido(p) {
   const id = p.partido_id || p.id;
 
@@ -304,10 +315,8 @@ async function editarPartido(p) {
   document.getElementById('part-chv-vis').value = p.chaves_visitante ?? 0;
   document.getElementById('part-estado').value = p.estado || 'finalizado';
 
-  // Opcional: Si tienes una función para cargar los inputs de los jugadores al editar:
-  if (typeof cargarJugadoresParaEdicion === 'function') {
-    await cargarJugadoresParaEdicion(id, p.equipo_local_id, p.equipo_visitante_id);
-  }
+  // Forzar la actualización de la lista de jugadores de ambos equipos
+  await actualizarVistaJugadores();
 }
 
 async function guardarPartido(e) {
@@ -409,41 +418,7 @@ function abrirGoogleMaps() {
   }
 }
 
-// 1. Cargar la tabla de Eventos
-async function cargarEventos() {
-  const { data, error } = await supabaseClient
-    .from('eventos')
-    .select('*')
-    .order('fecha_hora', { ascending: true });
 
-  if (error) {
-    console.error('Error cargando eventos:', error.message);
-    return;
-  }
-
-  const tbody = document.querySelector('#tabla-eventos tbody');
-  if (tbody) {
-    tbody.innerHTML = (data || []).map(ev => {
-      const tituloEsc = (ev.titulo || '').replace(/'/g, "\\'");
-      const lugarEsc = (ev.lugar || '').replace(/'/g, "\\'");
-      const comentariosEsc = (ev.comentarios || '').replace(/'/g, "\\'");
-      const fechaVal = ev.fecha_hora || '';
-
-      return `
-        <tr>
-          <td>${fechaVal ? new Date(fechaVal).toLocaleString('gl-ES', { dateStyle: 'short', timeStyle: 'short' }) : '-'}</td>
-          <td><b>${ev.titulo}</b></td>
-          <td>${formatearLugar(ev.lugar)}</td>
-          <td>${ev.comentarios || '-'}</td>
-          <td class="action-btns">
-            <button onclick="editarEvento(${ev.id}, '${tituloEsc}', '${fechaVal}', '${lugarEsc}', '${comentariosEsc}')">Editar</button>
-            <button onclick="eliminar('eventos', ${ev.id}, cargarEventos)" class="btn-danger">Borrar</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
-  }
-}
 
 // 2. Cargar evento en el formulario para editar
 function editarEvento(id, titulo, fechaHora, lugar, comentarios) {
@@ -460,43 +435,7 @@ function editarEvento(id, titulo, fechaHora, lugar, comentarios) {
   if (elComentarios) elComentarios.value = comentarios || '';
 }
 
-// 3. Guardar evento
-async function guardarEvento(e) {
-  e.preventDefault();
 
-  const id = document.getElementById('eve-id')?.value;
-  const titulo = document.getElementById('eve-titulo')?.value;
-  const fechaInput = document.getElementById('eve-fecha')?.value;
-  const lugar = document.getElementById('eve-lugar')?.value || '';
-  const comentarios = document.getElementById('eve-comentarios')?.value || '';
-
-  if (!titulo || !fechaInput) {
-    alert('⚠️ Por favor, rechea o título e a data do evento.');
-    return;
-  }
-
-  const fechaISO = new Date(fechaInput).toISOString();
-
-  const payload = {
-    titulo,
-    fecha_hora: fechaISO,
-    lugar,
-    comentarios
-  };
-
-  const { error } = id
-    ? await supabaseClient.from('eventos').update(payload).eq('id', id)
-    : await supabaseClient.from('eventos').insert([payload]);
-
-  if (error) {
-    console.error('Error Supabase:', error);
-    alert(`Error ao gardar evento: ${error.message}`);
-  } else {
-    alert('✅ Evento gardado correctamente');
-    resetForm('eve');
-    cargarEventos();
-  }
-}
     // ELIMINACIÓN GENÉRICA
 async function eliminar(tabla, id, callback) {
   if (!id) return;
