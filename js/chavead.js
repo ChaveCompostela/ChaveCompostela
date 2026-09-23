@@ -55,15 +55,24 @@
     }
 
     // CARGA GENERAL
-    async function cargarTodo() {
-      await cargarEquipos();
-      cargarTemporadas();
-      cargarJugadores();
-      cargarPartidos();
-      cargarEventos();
-      cargarClubes();
-    }
+  async function cargarTodo() {
+  try {
+    // 1. PRIMERO: Clubes y Temporadas (Datos maestros sin dependencias)
+    await cargarClubes();     // Llena la tabla de clubes Y el desplegable #eq-clube
+    await cargarTemporadas(); // Llena datos/desplegables de temporadas
 
+    // 2. SEGUNDO: Equipos (Depende de Clubes)
+    await cargarEquipos();    // Llena tabla de equipos Y desplegables #jug-equipo, #part-local, #part-visitante
+
+    // 3. TERCERO: Tablas dependientes de Equipos
+    await cargarJugadores();  // Llena tabla de jugadores
+    await cargarPartidos();   // Llena tabla de partidos
+    await cargarEventos();    // Llena tabla de eventos
+    
+  } catch (err) {
+    console.error('Error al cargar la aplicación:', err);
+  }
+}
     // 1. TEMPORADAS CRUD
     async function cargarTemporadas() {
       const { data, error } = await supabaseClient.from('temporadas').select('*').order('id', { ascending: false });
@@ -923,73 +932,80 @@ async function cargarClubes() {
   }).join('');
 }
 
-async function cargarDesplegableClubes() {
-  // Selecciona todos los desplegables por ID o por clase CSS '.select-clube'
-  const selects = document.querySelectorAll('#eq-clube, select[name="club_id"], .select-clube');
-  
-  if (selects.length === 0) return;
 
-  // Consulta a la tabla de Supabase (asegúrate de si es 'club' o 'clubes')
-  const { data: clubes, error } = await supabaseClient
-    .from('club')
-    .select('id, nombre')
-    .order('nombre', { ascending: true });
-
-  if (error) {
-    console.error('Error al obtener clubes para el desplegable:', error.message);
-    return;
-  }
-
-  const lista = clubes || [];
-  console.log(`Cargados ${lista.length} clubes en los desplegables:`, lista);
-
-  // Generar el HTML de las opciones
-  const opcionesHTML = lista.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
-
-  // Aplicar a cada select encontrado en la página
-  selects.forEach(select => {
-    const valorSeleccionado = select.value; // Guardar valor si se estaba editando
-    select.innerHTML = '<option value="">-- Selecciona un Club --</option>' + opcionesHTML;
-    if (valorSeleccionado) select.value = valorSeleccionado;
-  });
-}
 
 // Exposición global
 window.cargarClubes = cargarClubes;
-window.cargarDesplegableClubes = cargarDesplegableClubes;
 window.editarClub = editarClub;
 
 // 2. Guardar (Crear o Editar)
-async function guardarClub(event) {
-  event.preventDefault();
+async function cargarClubes() {
+  const { data, error } = await supabaseClient
+    .from('club')
+    .select('*')
+    .order('nombre');
 
-  const id = document.getElementById('club-id').value;
-  const nombre = document.getElementById('club-nombre').value.trim();
-  const localidad = document.getElementById('club-localidad').value.trim();
-
-  const datos = {
-    nombre: nombre,
-    localidad: localidad || null
-  };
-
-  let response;
-  if (id) {
-    // Modo Edición
-    response = await supabaseClient.from('club').update(datos).eq('id', id);
-  } else {
-    // Modo Creación
-    response = await supabaseClient.from('club').insert([datos]);
-  }
-
-  if (response.error) {
-    alert('Error al guardar el club: ' + response.error.message);
+  if (error) {
+    console.error('Error al cargar clubes:', error.message);
     return;
   }
 
-  resetForm('club');
-  await cargarClubes();
+  const clubes = data || [];
+
+  // 1. Rellenar la tabla de clubes
+  const tbody = document.querySelector('#tabla-clubes tbody');
+  if (tbody) {
+    tbody.innerHTML = clubes.map(c => {
+      const nom = escapeHTML(c.nombre);
+      const loc = escapeHTML(c.localidad || '');
+
+      return `
+        <tr>
+          <td>${c.id}</td>
+          <td><b>${c.nombre}</b></td>
+          <td>${c.localidad || '-'}</td>
+          <td class="action-btns">
+            <button onclick="editarClub(${c.id}, '${nom}', '${loc}')">Editar</button>
+            <button onclick="eliminar('club', ${c.id}, cargarClubes)" class="btn-danger">Borrar</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // 2. Generar opciones y rellenar el desplegable de Equipos (#eq-clube)
+  const opcionesClubes = clubes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+
+  const selectEqClub = document.getElementById('eq-clube');
+  if (selectEqClub) {
+    selectEqClub.innerHTML = '<option value="">-- Sen Club --</option>' + opcionesClubes;
+  }
 }
 
+function editarClub(id, nombre, localidad) {
+  document.getElementById('club-id').value = id;
+  document.getElementById('club-nombre').value = nombre;
+  document.getElementById('club-localidad').value = localidad;
+}
+
+async function guardarClub(e) {
+  e.preventDefault();
+  const id = document.getElementById('club-id').value;
+  const nombre = document.getElementById('club-nombre').value;
+  const localidad = document.getElementById('club-localidad').value;
+
+  const payload = { nombre, localidad };
+  const { error } = id 
+    ? await supabaseClient.from('club').update(payload).eq('id', id)
+    : await supabaseClient.from('club').insert([payload]);
+
+  if (error) {
+    alert('Error al guardar club: ' + error.message);
+  } else {
+    resetForm('club');
+    await cargarClubes(); // Actualiza la tabla y el desplegable eq-clube al instante
+  }
+}
 // 3. Cargar datos en el formulario para editar
 function prepararEdicionClub(id) {
   const club = listaClubes.find(c => c.id === id);
