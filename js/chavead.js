@@ -135,7 +135,8 @@ async function cargarEquipos() {
         <tr>
           <td>${eq.id}</td>
           <td><b>${eq.nombre}</b></td>
-          <td>${eq.localidad || '-'}</td>
+          <td>${eq.localidad}</b></td>
+          <td>${eq.club || '-'}</td>
           <td class="action-btns">
             <button onclick="editarEquipo(${eq.id}, '${nombreEscapado}', '${localidadEscapada}')">Editar</button>
             <button onclick="eliminar('equipos', ${eq.id}, cargarEquipos)" class="btn-danger">Borrar</button>
