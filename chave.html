@@ -68,6 +68,15 @@
       <input type="text" id="club-localidad" placeholder="Ej: Ferrol">
     </div>
 
+<div class="form-group">
+  <label for="equipoCategoria">Categoría:</label>
+  <select id="equipoCategoria" class="form-control" required>
+    <option value="Masculina">Masculina</option>
+    <option value="Femenina">Femenina</option>
+    <option value="Mista">Mista</option>
+  </select>
+</div>
+
     <div style="grid-column: 1/-1; display: flex; gap: 10px;">
       <button type="submit">Gardar Club</button>
       <button type="button" class="btn-secondary" onclick="resetForm('club')">Cancelar / Limpar</button>
