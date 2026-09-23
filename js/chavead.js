@@ -321,7 +321,7 @@ async function cargarPartidos() {
         <td>${p.estado || 'pendiente'}</td>
         <td>
           <button type="button" onclick="prepararEdicionPartido(${p.id})">Editar</button>
-          <button type="button" class="btn-danger" style="background-color: #dc3545; color: white;" onclick="eliminarPartido(${p.id})">Borrar</button>
+          <button onclick="eliminar('partidos', ${ev.id}, cargarPartidos)" class="btn-danger">Borrar</button>
         </td>
       </tr>
     `;
@@ -386,51 +386,7 @@ async function guardarPartido(e) {
   }
 
 
-async function eliminarPartido(id) {
-  if (!id) return;
 
-  const confirmar = confirm('¿Estás seguro de que deseas eliminar este partido? Esta acción borra también las puntuaciones registradas.');
-  if (!confirmar) return;
-
-  try {
-    // 1. Borrar registros dependientes en partido_jugadores
-    const { error: errJugadores } = await supabaseClient
-      .from('partido_jugadores')
-      .delete()
-      .eq('partido_id', id);
-
-    if (errJugadores) {
-      console.warn('Aviso al eliminar registros de jugadores:', errJugadores.message);
-    }
-
-    // 2. Borrar el registro del partido
-    const { error: errPartido } = await supabaseClient
-      .from('partidos')
-      .delete()
-      .eq('id', id);
-
-    if (errPartido) throw errPartido;
-
-    // 3. Si el partido que se borra está abierto en el formulario, limpiarlo
-    const partIdActual = document.getElementById('part-id')?.value;
-    if (partIdActual == id) {
-      if (typeof resetForm === 'function') {
-        resetForm('part');
-      } else {
-        document.getElementById('part-id').value = '';
-        const form = document.getElementById('part-id')?.closest('form');
-        if (form) form.reset();
-      }
-    }
-
-    // 4. Recargar la tabla
-    await cargarPartidos();
-
-  } catch (error) {
-    console.error('Error al eliminar partido:', error);
-    alert('No se pudo eliminar el partido: ' + (error.message || error));
-  }
-}
     
   // 1. Datos básicos del partido
   const payloadPartido = {
