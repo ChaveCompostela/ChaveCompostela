@@ -1,7 +1,9 @@
     // CONFIGURACIÓN SUPABASE
     const SUPABASE_URL = 'https://tlpkxrwwdosrzqcqwybq.supabase.co/';
     const SUPABASE_ANON_KEY = 'sb_publishable_C2pLthVQIIFVGAYJP4JPjw_5n1VwXIh';
-    
+
+
+
     // Asignación explícita del cliente
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -265,13 +267,11 @@ async function cargarJugadores() {
 let listaPartidos = [];
 
 async function cargarPartidos() {
-  // 1. Seleccionar el tbody dentro de #tabla-partidos
   const tbody = document.querySelector('#tabla-partidos tbody');
   if (!tbody) return;
 
   tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Cargando partidos...</td></tr>';
 
-  // 2. Consultar partidos a Supabase trayendo el nombre de los equipos
   const { data: partidos, error } = await supabaseClient
     .from('partidos')
     .select(`
@@ -295,20 +295,20 @@ async function cargarPartidos() {
     return;
   }
 
-  if (!partidos || partidos.length === 0) {
+  // Se asigna el resultado a tu variable global existente
+  listaPartidos = partidos || [];
+
+  if (listaPartidos.length === 0) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No hay partidos registrados aún.</td></tr>';
     return;
   }
 
-  // 3. Renderizar las filas con las 7 columnas exactas
-  tbody.innerHTML = partidos.map(p => {
+  tbody.innerHTML = listaPartidos.map(p => {
     const nomLocal = p.equipo_local?.nombre || `Equipo ${p.equipo_local_id}`;
     const nomVisita = p.equipo_visitante?.nombre || `Equipo ${p.equipo_visitante_id}`;
-    
     const resultado = p.estado === 'finalizado' 
       ? `<strong>${p.puntos_local ?? 0} - ${p.puntos_visitante ?? 0}</strong>` 
       : '—';
-
     const chaves = `${p.chaves_local ?? 0} - ${p.chaves_visitante ?? 0}`;
 
     return `
@@ -320,17 +320,39 @@ async function cargarPartidos() {
         <td>${chaves}</td>
         <td>${p.estado || 'pendiente'}</td>
         <td>
-          <button type="button" onclick='editarPartido(${JSON.stringify(p)})'>Editar</button>
+          <button type="button" onclick="prepararEdicionPartido(${p.id})">Editar</button>
         </td>
       </tr>
     `;
   }).join('');
 }
-// Función auxiliar para buscar el partido sin problemas de sintaxis en HTML
-function prepararEdicion(id) {
-  const partido = listaPartidos.find(p => (p.partido_id || p.id) === id);
-  if (partido) {
-    editarPartido(partido);
+
+async function prepararEdicionPartido(id) {
+  // Busca el partido en tu variable listaPartidos
+  const p = listaPartidos.find(item => item.id == id);
+  if (!p) {
+    console.error('No se encontró el partido con ID:', id);
+    return;
+  }
+
+  // 1. Asignar valores al formulario
+  if (document.getElementById('part-id')) document.getElementById('part-id').value = p.id;
+  if (document.getElementById('part-jornada')) document.getElementById('part-jornada').value = p.jornada || 1;
+  if (document.getElementById('part-local')) document.getElementById('part-local').value = p.equipo_local_id || '';
+  if (document.getElementById('part-visitante')) document.getElementById('part-visitante').value = p.equipo_visitante_id || '';
+  if (document.getElementById('part-pts-loc')) document.getElementById('part-pts-loc').value = p.puntos_local ?? 0;
+  if (document.getElementById('part-pts-vis')) document.getElementById('part-pts-vis').value = p.puntos_visitante ?? 0;
+  if (document.getElementById('part-chv-loc')) document.getElementById('part-chv-loc').value = p.chaves_local ?? 0;
+  if (document.getElementById('part-chv-vis')) document.getElementById('part-chv-vis').value = p.chaves_visitante ?? 0;
+  if (document.getElementById('part-estado')) document.getElementById('part-estado').value = p.estado || 'finalizado';
+
+  // 2. Cargar jugadores y sus chaves
+  await actualizarVistaJugadores();
+
+  // 3. Scroll hacia el formulario
+  const formulario = document.getElementById('part-id')?.closest('form') || document.getElementById('seccion-jugadores');
+  if (formulario) {
+    formulario.scrollIntoView({ behavior: 'smooth' });
   }
 }
 
