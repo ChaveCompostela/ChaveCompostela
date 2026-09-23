@@ -40,12 +40,34 @@
       checkAuth();
     }
 
-    function switchTab(e, tab) {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-      if (e && e.target) e.target.classList.add('active');
-      document.getElementById('panel-' + tab).classList.add('active');
-    }
+function switchTab(e, tab) {
+  // 1. Quitar la clase 'active' de todos los botones
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+  // 2. Quitar la clase 'active' y ocultar todos los paneles
+  document.querySelectorAll('.panel').forEach(p => {
+    p.classList.remove('active');
+    p.style.display = 'none'; // Asegura que se oculte incluso sin CSS
+  });
+
+  // 3. Activar el botón pulsado
+  if (e && e.currentTarget) {
+    e.currentTarget.classList.add('active');
+  }
+
+  // 4. Buscar el panel correspondiente (#panel-clubes, #panel-temporadas, etc.)
+  const targetPanel = document.getElementById('panel-' + tab) || document.getElementById(tab);
+
+  if (targetPanel) {
+    targetPanel.classList.add('active');
+    targetPanel.style.display = 'block'; // Muestra el panel
+  } else {
+    console.warn(`[switchTab] No se encontró ningún panel con id="panel-${tab}"`);
+  }
+}
+
+// Exposición global para que los onclick="" del HTML la encuentren
+window.switchTab = switchTab;
 
     function resetForm(prefix) {
       const idEl = document.getElementById(prefix + '-id');
