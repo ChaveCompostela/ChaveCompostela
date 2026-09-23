@@ -249,37 +249,66 @@ async function cargarEquipos() {
     }
 
     // 4. PARTIDOS CRUD
-    async function cargarPartidos() {
-      const { data, error } = await supabaseClient.from('vista_calendario').select('*');
-      if (error) return console.error(error);
-      const tbody = document.querySelector('#tabla-partidos tbody');
-      tbody.innerHTML = (data || []).map(p => `
-        <tr>
-          <td>${p.jornada}</td>
-          <td>${p.equipo_local}</td>
-          <td>${p.equipo_visitante}</td>
-          <td><b>${p.puntos_local} - ${p.puntos_visitante}</b></td>
-          <td>${p.chaves_local} / ${p.chaves_visitante}</td>
-          <td>${p.estado}</td>
-          <td class="action-btns">
-            <button onclick="editarPartido(${p.partido_id || p.id}, ${p.jornada}, ${p.equipo_local_id}, ${p.equipo_visitante_id}, ${p.puntos_local}, ${p.puntos_visitante}, ${p.chaves_local}, ${p.chaves_visitante}, '${p.estado}')">Editar</button>
-            <button onclick="eliminar('partidos', ${p.partido_id || p.id}, cargarPartidos)" class="btn-danger">Borrar</button>
-          </td>
-        </tr>
-      `).join('');
-    }
+// Variable global para guardar temporalmente los partidos cargados
+let listaPartidos = [];
 
-    function editarPartido(id, jornada, locId, visId, ptsL, ptsV, chvL, chvV, estado) {
-      document.getElementById('part-id').value = id;
-      document.getElementById('part-jornada').value = jornada;
-      document.getElementById('part-local').value = locId;
-      document.getElementById('part-visitante').value = visId;
-      document.getElementById('part-pts-loc').value = ptsL;
-      document.getElementById('part-pts-vis').value = ptsV;
-      document.getElementById('part-chv-loc').value = chvL;
-      document.getElementById('part-chv-vis').value = chvV;
-      document.getElementById('part-estado').value = estado;
-    }
+async function cargarPartidos() {
+  const { data, error } = await supabaseClient.from('vista_calendario').select('*');
+  
+  if (error) {
+    console.error("Error al cargar partidos:", error);
+    return;
+  }
+
+  listaPartidos = data || []; // Guardamos los partidos
+  const tbody = document.querySelector('#tabla-partidos tbody');
+
+  tbody.innerHTML = listaPartidos.map(p => {
+    const id = p.partido_id || p.id;
+    return `
+      <tr>
+        <td>${p.jornada || ''}</td>
+        <td>${p.equipo_local || ''}</td>
+        <td>${p.equipo_visitante || ''}</td>
+        <td><b>${p.puntos_local ?? 0} - ${p.puntos_visitante ?? 0}</b></td>
+        <td>${p.chaves_local ?? 0} / ${p.chaves_visitante ?? 0}</td>
+        <td>${p.estado || ''}</td>
+        <td class="action-btns">
+          <button onclick="prepararEdicion(${id})">Editar</button>
+          <button onclick="eliminar('partidos', ${id}, cargarPartidos)" class="btn-danger">Borrar</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// Función auxiliar para buscar el partido sin problemas de sintaxis en HTML
+function prepararEdicion(id) {
+  const partido = listaPartidos.find(p => (p.partido_id || p.id) === id);
+  if (partido) {
+    editarPartido(partido);
+  }
+}
+
+// Función editarPartido actualizada aceptando el objeto completo
+async function editarPartido(p) {
+  const id = p.partido_id || p.id;
+
+  document.getElementById('part-id').value = id;
+  document.getElementById('part-jornada').value = p.jornada || '';
+  document.getElementById('part-local').value = p.equipo_local_id || '';
+  document.getElementById('part-visitante').value = p.equipo_visitante_id || '';
+  document.getElementById('part-pts-loc').value = p.puntos_local ?? 0;
+  document.getElementById('part-pts-vis').value = p.puntos_visitante ?? 0;
+  document.getElementById('part-chv-loc').value = p.chaves_local ?? 0;
+  document.getElementById('part-chv-vis').value = p.chaves_visitante ?? 0;
+  document.getElementById('part-estado').value = p.estado || 'finalizado';
+
+  // Opcional: Si tienes una función para cargar los inputs de los jugadores al editar:
+  if (typeof cargarJugadoresParaEdicion === 'function') {
+    await cargarJugadoresParaEdicion(id, p.equipo_local_id, p.equipo_visitante_id);
+  }
+}
 
 async function guardarPartido(e) {
   e.preventDefault();
