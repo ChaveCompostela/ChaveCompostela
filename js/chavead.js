@@ -421,21 +421,33 @@ function abrirGoogleMaps() {
 
 
 // 2. Cargar evento en el formulario para editar
-function editarEvento(id, titulo, fechaHora, lugar, comentarios) {
+
+
+function editarEvento(id, titulo, fechaHora, lugar, ubicacion, comentarios) {
   const elId = document.getElementById('eve-id');
   const elTitulo = document.getElementById('eve-titulo');
   const elFecha = document.getElementById('eve-fecha');
   const elLugar = document.getElementById('eve-lugar');
+  const elUbicacion = document.getElementById('eve-ubicacion');
   const elComentarios = document.getElementById('eve-comentarios');
 
   if (elId) elId.value = id;
   if (elTitulo) elTitulo.value = titulo;
-  if (elFecha) elFecha.value = fechaHora ? fechaHora.slice(0, 16) : '';
+  
+  if (elFecha && fechaHora) {
+    // Formatear la fecha a ISO local para el input datetime-local (YYYY-MM-THH:mm)
+    const fechaObj = new Date(fechaHora);
+    const tzOffset = fechaObj.getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(fechaObj.getTime() - tzOffset)).toISOString().slice(0, 16);
+    elFecha.value = localISOTime;
+  } else if (elFecha) {
+    elFecha.value = '';
+  }
+
   if (elLugar) elLugar.value = lugar || '';
+  if (elUbicacion) elUbicacion.value = ubicacion || '';
   if (elComentarios) elComentarios.value = comentarios || '';
 }
-
-
     // ELIMINACIÓN GENÉRICA
 async function eliminar(tabla, id, callback) {
   if (!id) return;
