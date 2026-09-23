@@ -829,4 +829,113 @@ async function guardarEvento(e) {
     cargarEventos();
   }
 }
-    
+
+let listaClubes = [];
+
+// 1. Cargar y renderizar los clubes en la tabla
+async function cargarClubes() {
+  const tbody = document.querySelector('#tabla-clubes tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Cargando clubes...</td></tr>';
+
+  const { data: clubes, error } = await supabaseClient
+    .from('clubes')
+    .select('*')
+    .order('nombre', { ascending: true });
+
+  if (error) {
+    console.error('Error al obtener clubes:', error);
+    tbody.innerHTML = `<tr><td colspan="4" style="color:red; text-align:center;">Error: ${error.message}</td></tr>`;
+    return;
+  }
+
+  listaClubes = clubes || [];
+
+  if (listaClubes.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No hay clubes registrados aún.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = listaClubes.map(c => `
+    <tr>
+      <td>${c.id}</td>
+      <td><strong>${c.nombre}</strong></td>
+      <td>${c.localidad || '—'}</td>
+      <td class="action-btns">
+        <button type="button" onclick="prepararEdicionClub(${c.id})">Editar</button>
+        <button type="button" class="btn-danger" style="background-color: #dc3545; color: white;" onclick="eliminarClub(${c.id})">Borrar</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// 2. Guardar (Crear o Editar)
+async function guardarClub(event) {
+  event.preventDefault();
+
+  const id = document.getElementById('club-id').value;
+  const nombre = document.getElementById('club-nombre').value.trim();
+  const localidad = document.getElementById('club-localidad').value.trim();
+
+  const datos = {
+    nombre: nombre,
+    localidad: localidad || null
+  };
+
+  let response;
+  if (id) {
+    // Modo Edición
+    response = await supabaseClient.from('clubes').update(datos).eq('id', id);
+  } else {
+    // Modo Creación
+    response = await supabaseClient.from('clubes').insert([datos]);
+  }
+
+  if (response.error) {
+    alert('Error al guardar el club: ' + response.error.message);
+    return;
+  }
+
+  resetForm('club');
+  await cargarClubes();
+}
+
+// 3. Cargar datos en el formulario para editar
+function prepararEdicionClub(id) {
+  const club = listaClubes.find(c => c.id === id);
+  if (!club) return;
+
+  document.getElementById('club-id').value = club.id;
+  document.getElementById('club-nombre').value = club.nombre;
+  document.getElementById('club-localidad').value = club.localidad || '';
+
+  const title = document.getElementById('club-form-title');
+  if (title) title.textContent = 'Editar Club';
+}
+
+// 4. Eliminar Club
+async function eliminarClub(id) {
+  if (!confirm('¿Seguro que deseas eliminar este club?')) return;
+
+  const { error } = await supabaseClient.from('clubes').delete().eq('id', id);
+
+  if (error) {
+    alert('Error al eliminar club: ' + error.message);
+    return;
+  }
+
+  await cargarClubes();
+}
+
+// 5. Complemento para resetForm(prefix)
+// Si ya tienes un resetForm genérico, asegúrate de que contemple el prefijo 'club':
+function resetForm(prefix) {
+  if (prefix === 'club') {
+    document.getElementById('club-id').value = '';
+    document.getElementById('club-nombre').value = '';
+    document.getElementById('club-localidad').value = '';
+    const title = document.getElementById('club-form-title');
+    if (title) title.textContent = 'Crear / Editar Club';
+  }
+}
