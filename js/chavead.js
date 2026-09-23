@@ -321,7 +321,7 @@ async function cargarPartidos() {
         <td>${p.estado || 'pendiente'}</td>
         <td>
           <button type="button" onclick="prepararEdicionPartido(${p.id})">Editar</button>
-          <button onclick="eliminar('partidos', ${ev.id}, cargarPartidos)" class="btn-danger">Borrar</button>
+          <button onclick="eliminar('partidos', ${p.id}, cargarPartidos)" class="btn-danger">Borrar</button>
         </td>
       </tr>
     `;
