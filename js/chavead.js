@@ -61,6 +61,7 @@
       cargarJugadores();
       cargarPartidos();
       cargarEventos();
+      cargarClubes();
     }
 
     // 1. TEMPORADAS CRUD
