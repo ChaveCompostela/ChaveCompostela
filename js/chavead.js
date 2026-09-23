@@ -289,13 +289,12 @@ async function cargarJugadores() {
     const nombreEquipo = j.equipos ? j.equipos.nombre : '<em style="color:var(--muted)">Sin equipo</em>';
     const nom = escapeHTML(j.nombre);
     const ape = escapeHTML(j.apellidos);
-    const ali = escapeHTML(j.alias || '');
+ 
 
     return `
       <tr>
         <td>${j.id}</td>
         <td>${j.apellidos}, ${j.nombre}</td>
-        <td>${j.alias || '-'}</td>
         <td><b>${nombreEquipo}</b></td>
         <td class="action-btns">
           <button onclick="editarJugador(${j.id}, '${nom}', '${ape}', ${j.equipo_id || 'null'})">Editar</button>
@@ -309,7 +308,6 @@ async function cargarJugadores() {
       document.getElementById('jug-id').value = id;
       document.getElementById('jug-nombre').value = nombre;
       document.getElementById('jug-apellidos').value = apellidos;
-      document.getElementById('jug-alias').value = alias;
       document.getElementById('jug-equipo').value = equipoId || '';
     }
 
@@ -321,7 +319,7 @@ async function cargarJugadores() {
       const equipoVal = document.getElementById('jug-equipo').value;
       const equipo_id = equipoVal ? parseInt(equipoVal) : null;
 
-      const payload = { nombre, apellidos, alias, equipo_id };
+      const payload = { nombre, apellidos, equipo_id };
       const { error } = id 
         ? await supabaseClient.from('jugadores').update(payload).eq('id', id)
         : await supabaseClient.from('jugadores').insert([payload]);
