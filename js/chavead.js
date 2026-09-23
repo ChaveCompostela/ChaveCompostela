@@ -577,19 +577,50 @@ function editarEvento(id, titulo, fechaHora, lugar, ubicacion, comentarios) {
   if (elUbicacion) elUbicacion.value = ubicacion || '';
   if (elComentarios) elComentarios.value = comentarios || '';
 }
-    // ELIMINACIÓN GENÉRICA
+// ELIMINACIÓN GENÉRICA CON COMPROBACIÓN DE DEPENDENCIAS
 async function eliminar(tabla, id, callback) {
   if (!id) return;
-  
+
+  // 1. VALIDACIÓN PREVIA DE DEPENDENCIAS
+  if (tabla === 'clubes') {
+    const { count } = await supabaseClient
+      .from('equipos')
+      .select('*', { count: 'exact', head: true })
+      .eq('id_club', id); // ⚠️ Asegúrate de que a columna en Supabase se chama 'id_club' (ou 'club_id')
+
+    if (count && count > 0) {
+      alert(`⚠️ Non se pode eliminar este club porque ten ${count} equipo(s) asociado(s). Elimina ou reasigna os equipos primeiro.`);
+      return;
+    }
+  }
+
+  if (tabla === 'equipos') {
+    const { count } = await supabaseClient
+      .from('jugadores') // ⚠️ Cambia a 'xogadores' se esa é a túa táboa en Supabase
+      .select('*', { count: 'exact', head: true })
+      .eq('id_equipo', id); // ⚠️ Revisa se na túa base de datos se chama 'id_equipo' ou 'equipo_id'
+
+    if (count && count > 0) {
+      alert(`⚠️ Non se pode eliminar este equipo porque ten ${count} xogador(es) asociado(s). Elimina ou reasigna os xogadores primeiro.`);
+      return;
+    }
+  }
+
+  // 2. CONFIRMACIÓN E BORRADO
   if (confirm(`¿Seguro que desexas eliminar este rexistro de ${tabla}?`)) {
     const { error } = await supabaseClient.from(tabla).delete().eq('id', id);
-    
+
     if (error) {
-      // Si el error es de clave foránea al borrar (código PostgreSQL 23503)
+      // Captura de seguridade por si falla a clave foránea (código PostgreSQL 23503)
       if (error.code === '23503') {
-        alert('⚠️ Non se pode eliminar este rexistro porque ten datos vinculados noutras táboas (por exemplo, partidos ou xogadores asociados).');
+        const mensaxes = {
+          clubes: '⚠️ Non se pode eliminar este club porque ten equipos asociados.',
+          equipos: '⚠️ Non se pode eliminar este equipo porque ten xogadores ou partidos asociados.',
+          temporadas: '⚠️ Non se pode eliminar esta temporada porque ten datos vinculados.'
+        };
+        alert(mensaxes[tabla] || '⚠️ Non se pode eliminar este rexistro porque ten datos vinculados noutras táboas.');
       } else {
-        alert('Error al eliminar: ' + error.message);
+        alert('Erro al eliminar: ' + error.message);
       }
     } else {
       callback();
