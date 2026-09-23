@@ -1,4 +1,4 @@
- <script>
+
         // Variable global para recordar o xénero seleccionado (masculina/femenina)
         let activeGender = 'masculina';
 
@@ -73,5 +73,5 @@
             }
         }
 
-    </script>
+    
 
